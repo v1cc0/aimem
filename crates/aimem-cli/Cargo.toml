@@ -5,14 +5,18 @@ edition.workspace = true
 license.workspace = true
 authors.workspace = true
 homepage.workspace = true
+repository.workspace = true
 description = "CLI for AiMem"
+keywords = ["ai", "memory", "cli", "agent", "search"]
+categories = ["command-line-utilities"]
+readme = "README.md"
 
 [[bin]]
 name = "aimem"
 path = "src/main.rs"
 
 [dependencies]
-aimem-core = { path = "../aimem-core" }
+aimem-core.workspace = true
 tokio.workspace = true
 clap.workspace = true
 serde_json.workspace = true

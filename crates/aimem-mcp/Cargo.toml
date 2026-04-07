@@ -5,14 +5,18 @@ edition.workspace = true
 license.workspace = true
 authors.workspace = true
 homepage.workspace = true
+repository.workspace = true
 description = "MCP server for AiMem"
+keywords = ["ai", "memory", "mcp", "agent", "server"]
+categories = ["command-line-utilities"]
+readme = "README.md"
 
 [[bin]]
 name = "aimem-mcp"
 path = "src/main.rs"
 
 [dependencies]
-aimem-core = { path = "../aimem-core" }
+aimem-core.workspace = true
 tokio.workspace = true
 turso.workspace = true
 serde.workspace = true
