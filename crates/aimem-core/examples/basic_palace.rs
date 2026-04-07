@@ -2,7 +2,7 @@ use aimem_core::{Drawer, PalaceDb, Searcher};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let db = PalaceDb::open("./palace-example.db").await?;
+    let db = PalaceDb::open("./aimem-example.db").await?;
 
     let drawer = Drawer {
         id: "drawer_example_basic_001".into(),

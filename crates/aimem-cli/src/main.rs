@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use aimem_core::{
     Drawer, Embedder, Miner, PalaceDb, SearchResult, Searcher,
-    config::Config,
+    config::{Config, LEGACY_DB_FILE_NAME},
     convo::ConvoMiner,
     layers::{l0_render, l1_generate},
 };
@@ -357,7 +357,7 @@ fn resolve_db_path(cfg: &Config, db_path: Option<&Path>, palace: Option<&Path>) 
     }
 
     if let Some(dir) = palace {
-        return expand_home(dir).join("palace.db");
+        return expand_home(dir).join(LEGACY_DB_FILE_NAME);
     }
 
     cfg.db_path.clone()
@@ -541,9 +541,9 @@ mod tests {
     }
 
     #[test]
-    fn palace_dir_resolves_to_palace_db() {
+    fn palace_dir_resolves_to_legacy_palace_db() {
         let cfg = Config::default();
         let resolved = resolve_db_path(&cfg, None, Some(Path::new("~/tmp/palace")));
-        assert!(resolved.ends_with("tmp/palace/palace.db"));
+        assert!(resolved.ends_with(format!("tmp/palace/{LEGACY_DB_FILE_NAME}")));
     }
 }

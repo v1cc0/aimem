@@ -32,10 +32,10 @@
 //!
 //! ## Storage model
 //!
-//! Everything lives in a **single Turso DB file** (default: `~/.aimem/palace.db`):
+//! Everything lives in a **single Turso DB file** (default: `~/.aimem/aimem.db`):
 //!
 //! ```text
-//! palace.db
+//! aimem.db
 //! ├── drawers   — verbatim text chunks + vector32 embeddings
 //! ├── entities  — knowledge graph nodes
 //! └── triples   — temporal (subject → predicate → object) edges

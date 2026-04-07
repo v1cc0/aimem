@@ -23,6 +23,13 @@ cargo test
 cargo test -p aimem-core --test performance_smoke -- --ignored
 ```
 
+## Release flow
+
+1. Update `CHANGELOG.md`.
+2. Bump workspace/package versions if needed.
+3. Create a tag like `v0.1.0`.
+4. Push the tag to trigger `.github/workflows/release.yml`.
+
 ## Principles
 
 - local-first

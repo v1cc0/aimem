@@ -782,7 +782,7 @@ mod tests {
             .as_nanos();
         let dir = std::env::temp_dir().join(format!("aimem-mcp-{name}-{suffix}"));
         fs::create_dir_all(&dir).expect("failed to create temp dir");
-        (dir.join("palace.db"), dir.join("identity.txt"))
+        (dir.join("aimem.db"), dir.join("identity.txt"))
     }
 
     async fn test_state(name: &str) -> ServerState {

@@ -37,7 +37,7 @@ use aimem_core::PalaceDb;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let db = PalaceDb::open("./palace.db").await?;
+    let db = PalaceDb::open("./aimem.db").await?;
     println!("drawers = {}", db.drawer_count().await?);
     Ok(())
 }
@@ -153,7 +153,7 @@ use aimem_core::{Miner, PalaceDb};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let db = PalaceDb::open("./palace.db").await?;
+    let db = PalaceDb::open("./aimem.db").await?;
 
     // None = 只入文本，不生成 embedding
     let miner = Miner::new(db, None);
@@ -171,7 +171,7 @@ use aimem_core::{convo::ConvoMiner, PalaceDb};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let db = PalaceDb::open("./palace.db").await?;
+    let db = PalaceDb::open("./aimem.db").await?;
     let miner = ConvoMiner::new(db, None);
 
     let stats = miner

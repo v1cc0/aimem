@@ -31,7 +31,7 @@ rooms:
         "We decided to keep the backend in Rust and Turso because the router and database logic must stay local and predictable.",
     )?;
 
-    let db_path = temp.path().join("palace.db");
+    let db_path = temp.path().join("aimem.db");
     let db = PalaceDb::open(&db_path).await?;
     let miner = Miner::new(db.clone(), None);
 

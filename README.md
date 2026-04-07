@@ -74,8 +74,10 @@ Supported tools in the current MVP:
 
 Default local paths:
 
-- database: `~/.aimem/palace.db`
+- database: `~/.aimem/aimem.db`
 - identity: `~/.aimem/identity.txt`
+
+If an older `~/.aimem/palace.db` already exists, AiMem still opens it automatically for backward compatibility.
 
 Environment overrides:
 

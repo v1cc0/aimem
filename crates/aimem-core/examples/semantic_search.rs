@@ -2,7 +2,7 @@ use aimem_core::{Drawer, Embedder, PalaceDb, Searcher};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let db = PalaceDb::open("./palace-semantic-example.db").await?;
+    let db = PalaceDb::open("./aimem-semantic-example.db").await?;
     let embedder = Embedder::new()?;
 
     let content = "We moved the memory backend to Turso so semantic search stays local.";
