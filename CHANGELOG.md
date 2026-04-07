@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-04-08
+
 ### Added
 - Added `aimem_core::prelude::*` as a curated high-level import surface.
 - Updated official examples and top-level docs to demonstrate the `prelude`-first integration path.
