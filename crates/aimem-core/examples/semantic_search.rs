@@ -1,4 +1,4 @@
-use aimem_core::{AimemDb, Drawer, Embedder, Searcher};
+use aimem_core::prelude::*;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

@@ -64,7 +64,7 @@
 //! ```
 //!
 //! ```rust,no_run
-//! use aimem_core::{Config, Embedder, MemoryStack, AimemDb};
+//! use aimem_core::prelude::*;
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
@@ -93,7 +93,7 @@
 //! ## Mining a project
 //!
 //! ```rust,no_run
-//! use aimem_core::{Config, Embedder, Miner, AimemDb};
+//! use aimem_core::prelude::*;
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
@@ -121,7 +121,7 @@
 //! drawers still participate in SQL keyword search even though they have no embeddings.
 //!
 //! ```rust,no_run
-//! use aimem_core::{Drawer, AimemDb, Searcher};
+//! use aimem_core::prelude::*;
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
@@ -148,7 +148,7 @@
 //! ## Knowledge graph
 //!
 //! ```rust,no_run
-//! use aimem_core::{KnowledgeGraph, AimemDb};
+//! use aimem_core::prelude::*;
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
@@ -175,7 +175,7 @@
 //! ## Low-level storage operations
 //!
 //! ```rust,no_run
-//! use aimem_core::{Drawer, Embedder, AimemDb};
+//! use aimem_core::prelude::*;
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
@@ -247,3 +247,34 @@ pub use layers::MemoryStack;
 pub use miner::Miner;
 pub use search::Searcher;
 pub use types::{Drawer, DrawerMeta, Entity, RoomNode, SearchResult, Triple, Tunnel};
+
+/// Curated high-level imports for typical AiMem integrations.
+///
+/// This is the easiest way to get the common building blocks without pulling
+/// in deeper module paths.
+///
+/// ```rust
+/// use aimem_core::prelude::*;
+///
+/// fn _accepts_common_types(
+///     _cfg: Config,
+///     _db: AimemDb,
+///     _drawer: Drawer,
+///     _searcher: Searcher,
+///     _miner: Miner,
+///     _convo: ConvoMiner,
+///     _graph: AimemGraph,
+///     _kg: KnowledgeGraph,
+///     _stack: MemoryStack,
+///     _result: SearchResult,
+///     _triple: Triple,
+/// ) {
+/// }
+/// ```
+pub mod prelude {
+    pub use crate::{
+        AimemDb, AimemGraph, Config, ConvoMineStats, ConvoMiner, Drawer, DrawerMeta, Embedder,
+        Entity, KnowledgeGraph, MemoryStack, Miner, RoomNode, SearchResult, Searcher, Triple,
+        Tunnel,
+    };
+}

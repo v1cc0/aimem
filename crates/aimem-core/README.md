@@ -19,15 +19,31 @@ cargo add aimem-core
 
 ## API 稳定性
 
-`aimem-core` 建议把 crate 根导出的类型当作稳定入口使用，也就是优先从：
+`aimem-core` 建议优先使用两种高层入口：
+
+### 1. `aimem_core::prelude::*`
+
+```rust
+use aimem_core::prelude::*;
+```
+
+适合快速接入、示例代码、内部工具和绝大多数应用层集成。
+
+### 2. crate 根导出
 
 ```rust
 use aimem_core::{Config, AimemDb, Embedder, Miner, ConvoMiner, Searcher, KnowledgeGraph, MemoryStack};
 ```
 
-来接入，而不是直接依赖更深层的模块路径。
+适合你想显式控制导入面的时候。
 
-原因很简单：直接依赖更深层模块路径会把你的代码绑到更宽的 API 面上。新接入方最好把依赖面收敛到 crate 根 re-export 和少数核心数据类型上。
+不要直接依赖更深层的模块路径，例如：
+
+```rust
+use aimem_core::miner::Miner;
+```
+
+原因很简单：直接依赖更深层模块路径会把你的代码绑到更宽的 API 面上。新接入方最好把依赖面收敛到 `prelude`、crate 根 re-export 和少数核心数据类型上。
 
 ## 什么时候该用它
 
@@ -48,7 +64,7 @@ use aimem_core::{Config, AimemDb, Embedder, Miner, ConvoMiner, Searcher, Knowled
 ### 1. 打开/创建一个 AiMem DB
 
 ```rust,no_run
-use aimem_core::AimemDb;
+use aimem_core::prelude::*;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -61,7 +77,7 @@ async fn main() -> anyhow::Result<()> {
 ### 2. 手工写入 drawer（不生成 embedding 也可以）
 
 ```rust,no_run
-use aimem_core::{Drawer, AimemDb};
+use aimem_core::prelude::*;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -88,7 +104,7 @@ async fn main() -> anyhow::Result<()> {
 如果你导入时用了 `Miner::new(db, None)`，那 drawer 没有 embedding，但仍然可以做关键词搜索。
 
 ```rust,no_run
-use aimem_core::{Drawer, AimemDb, Searcher};
+use aimem_core::prelude::*;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -117,7 +133,7 @@ async fn main() -> anyhow::Result<()> {
 第一次 `Embedder::new()` 会下载 `all-MiniLM-L6-v2` 模型缓存。
 
 ```rust,no_run
-use aimem_core::{Drawer, Embedder, AimemDb, Searcher};
+use aimem_core::prelude::*;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -164,7 +180,7 @@ rooms:
 然后：
 
 ```rust,no_run
-use aimem_core::{Miner, AimemDb};
+use aimem_core::prelude::*;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -182,7 +198,7 @@ async fn main() -> anyhow::Result<()> {
 ### 6. 导入对话导出文件
 
 ```rust,no_run
-use aimem_core::{convo::ConvoMiner, AimemDb};
+use aimem_core::prelude::*;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -201,7 +217,7 @@ async fn main() -> anyhow::Result<()> {
 ### 7. 生成 wake-up context
 
 ```rust,no_run
-use aimem_core::{Config, Embedder, MemoryStack, AimemDb};
+use aimem_core::prelude::*;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -219,7 +235,7 @@ async fn main() -> anyhow::Result<()> {
 ### 8. 知识图谱
 
 ```rust,no_run
-use aimem_core::{KnowledgeGraph, AimemDb};
+use aimem_core::prelude::*;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

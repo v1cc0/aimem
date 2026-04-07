@@ -60,9 +60,21 @@ The shape is intentionally simple: one local DB file, thin CLI/MCP frontends, an
 
 ## API stability
 
-Prefer the root-level `aimem_core::{...}` re-exports as the stable integration surface.
+Prefer one of the high-level integration surfaces:
 
-Deep module imports such as `aimem_core::miner::...` or `aimem_core::extractor::...` are a wider surface than new integrations should depend on. New code should bias toward the root types:
+### 1. Prelude
+
+```rust
+use aimem_core::prelude::*;
+```
+
+### 2. Explicit root imports
+
+```rust
+use aimem_core::{AimemDb, Config, ConvoMiner, Drawer, Embedder, KnowledgeGraph, MemoryStack, Miner, SearchResult, Searcher, Triple};
+```
+
+Deep module imports such as `aimem_core::miner::...` or `aimem_core::extractor::...` are a wider surface than new integrations should depend on. New code should bias toward `prelude` or the root types:
 
 - `Config`
 - `AimemDb`
@@ -140,7 +152,7 @@ aimem wake-up
 Minimal Rust embedding:
 
 ```rust
-use aimem_core::{Drawer, AimemDb, Searcher};
+use aimem_core::prelude::*;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
