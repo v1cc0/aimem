@@ -219,7 +219,10 @@
 //! ```
 //!
 //! The public re-exports in this file form the stable API surface.
-//! Everything else is implementation detail.
+//! For `0.1.x`, consumers should prefer `aimem_core::{...}` root imports over
+//! deep module paths. Some helper modules are already public due to `0.1.0`
+//! compatibility and therefore remain supported, but they are a wider API
+//! surface than new integrations should depend on.
 
 pub mod config;
 pub mod convo;

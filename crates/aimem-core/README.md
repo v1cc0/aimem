@@ -14,6 +14,18 @@ tokio = { version = "1", features = ["full"] }
 
 `aimem-core` 自己会依赖 Turso；你通常不需要手工再加一份 `turso`，除非你要直接操作底层连接。
 
+## API 稳定性（0.1.x）
+
+`aimem-core` 在 `0.1.x` 阶段建议把 crate 根导出的类型当作稳定入口使用，也就是优先从：
+
+```rust
+use aimem_core::{Config, PalaceDb, Embedder, Miner, ConvoMiner, Searcher, KnowledgeGraph, MemoryStack};
+```
+
+来接入，而不是直接依赖更深层的模块路径。
+
+原因很简单：`0.1.0` 已经把一些内部 helper 也暴露成了 public，这意味着它们现在不能在小版本里随便拿掉，否则会直接破坏 userspace。后续版本会继续兼容这批已公开 API，但新接入方最好把依赖面收敛到 crate 根 re-export 和少数核心数据类型上。
+
 ## 什么时候该用它
 
 - 你想把 AiMem 嵌入自己的 Rust agent / daemon / backend

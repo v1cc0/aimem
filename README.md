@@ -6,7 +6,8 @@
 [![crates.io: aimem-mcp](https://img.shields.io/crates/v/aimem-mcp)](https://crates.io/crates/aimem-mcp)
 
 Inspired by https://github.com/milla-jovovich/mempalace
-Vibe Alert: Entirely vibe coding by AI, issues are welcome, can't handle PR :(
+
+Small solo project. Issues are welcome.
 
 Rust-first local memory infrastructure for AI agents.
 
@@ -57,6 +58,22 @@ project files / chat exports
 ```
 
 The shape is intentionally simple: one local DB file, thin CLI/MCP frontends, and reusable logic in `aimem-core`.
+
+## API stability
+
+For `0.1.x`, prefer the root-level `aimem_core::{...}` re-exports as the stable integration surface.
+
+Direct module imports such as `aimem_core::miner::...` or `aimem_core::extractor::...` are still public today for backward compatibility with `0.1.0`, but they are a wider surface than we want long term. New integrations should bias toward the root types:
+
+- `Config`
+- `PalaceDb`
+- `Embedder`
+- `Miner`
+- `ConvoMiner`
+- `Searcher`
+- `KnowledgeGraph`
+- `MemoryStack`
+- core data types like `Drawer`, `SearchResult`, `Triple`
 
 ## Build
 
