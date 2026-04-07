@@ -3,7 +3,7 @@ use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use aimem_core::{Config, Drawer, Embedder, PalaceDb, SearchResult, Searcher};
+use aimem_core::{AimemDb, Config, Drawer, Embedder, SearchResult, Searcher};
 use anyhow::{Context, Result};
 use chrono::Utc;
 use serde_json::{Map, Value, json};
@@ -16,7 +16,7 @@ const AAAK_SPEC: &str = "AAAK is AiMem's compressed memory dialect.\n- ENTITIES:
 #[derive(Clone)]
 struct ServerState {
     cfg: Config,
-    db: PalaceDb,
+    db: AimemDb,
     embedder: Arc<Mutex<Option<Embedder>>>,
     embedder_loading_enabled: bool,
 }
@@ -40,9 +40,9 @@ impl ServerState {
         cfg.db_path = db_path;
         cfg.identity_path = identity_path;
 
-        let db = PalaceDb::open(&cfg.db_path)
+        let db = AimemDb::open(&cfg.db_path)
             .await
-            .with_context(|| format!("failed to open palace DB at {}", cfg.db_path.display()))?;
+            .with_context(|| format!("failed to open AiMem DB at {}", cfg.db_path.display()))?;
 
         Ok(Self {
             cfg,

@@ -1,8 +1,8 @@
-use aimem_core::{KnowledgeGraph, PalaceDb};
+use aimem_core::{AimemDb, KnowledgeGraph};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let db = PalaceDb::memory().await?;
+    let db = AimemDb::memory().await?;
     let kg = KnowledgeGraph::new(db);
 
     kg.add_triple("Alice", "works_on", "AiMem", Some("2026-01-01"), None)

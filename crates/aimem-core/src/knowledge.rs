@@ -4,9 +4,9 @@
 //!
 //! Usage:
 //! ```rust,no_run
-//! use aimem_core::{PalaceDb, KnowledgeGraph};
+//! use aimem_core::{AimemDb, KnowledgeGraph};
 //! # async fn run() -> anyhow::Result<()> {
-//! let db = PalaceDb::memory().await?;
+//! let db = AimemDb::memory().await?;
 //! let kg = KnowledgeGraph::new(db);
 //! kg.add_triple("Max", "child_of", "Alice", Some("2015-04-01"), None).await?;
 //! let facts = kg.query_entity("Max", None, "outgoing").await?;
@@ -17,17 +17,17 @@
 use chrono::Local;
 
 use crate::{
-    db::{DbError, PalaceDb},
+    db::{AimemDb, DbError},
     types::{Entity, Triple},
 };
 
 #[derive(Debug, Clone)]
 pub struct KnowledgeGraph {
-    db: PalaceDb,
+    db: AimemDb,
 }
 
 impl KnowledgeGraph {
-    pub fn new(db: PalaceDb) -> Self {
+    pub fn new(db: AimemDb) -> Self {
         Self { db }
     }
 

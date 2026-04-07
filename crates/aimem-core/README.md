@@ -19,7 +19,7 @@ tokio = { version = "1", features = ["full"] }
 `aimem-core` 在 `0.1.x` 阶段建议把 crate 根导出的类型当作稳定入口使用，也就是优先从：
 
 ```rust
-use aimem_core::{Config, PalaceDb, Embedder, Miner, ConvoMiner, Searcher, KnowledgeGraph, MemoryStack};
+use aimem_core::{Config, AimemDb, Embedder, Miner, ConvoMiner, Searcher, KnowledgeGraph, MemoryStack};
 ```
 
 来接入，而不是直接依赖更深层的模块路径。
@@ -45,11 +45,11 @@ use aimem_core::{Config, PalaceDb, Embedder, Miner, ConvoMiner, Searcher, Knowle
 ### 1. 打开/创建一个 palace
 
 ```rust,no_run
-use aimem_core::PalaceDb;
+use aimem_core::AimemDb;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let db = PalaceDb::open("./aimem.db").await?;
+    let db = AimemDb::open("./aimem.db").await?;
     println!("drawers = {}", db.drawer_count().await?);
     Ok(())
 }
@@ -58,11 +58,11 @@ async fn main() -> anyhow::Result<()> {
 ### 2. 手工写入 drawer（不生成 embedding 也可以）
 
 ```rust,no_run
-use aimem_core::{Drawer, PalaceDb};
+use aimem_core::{Drawer, AimemDb};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let db = PalaceDb::memory().await?;
+    let db = AimemDb::memory().await?;
 
     let drawer = Drawer {
         id: "drawer_demo_001".into(),
@@ -85,11 +85,11 @@ async fn main() -> anyhow::Result<()> {
 如果你导入时用了 `Miner::new(db, None)`，那 drawer 没有 embedding，但仍然可以做关键词搜索。
 
 ```rust,no_run
-use aimem_core::{Drawer, PalaceDb, Searcher};
+use aimem_core::{Drawer, AimemDb, Searcher};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let db = PalaceDb::memory().await?;
+    let db = AimemDb::memory().await?;
     let drawer = Drawer {
         id: "drawer_demo_001".into(),
         wing: "demo_app".into(),
@@ -114,11 +114,11 @@ async fn main() -> anyhow::Result<()> {
 第一次 `Embedder::new()` 会下载 `all-MiniLM-L6-v2` 模型缓存。
 
 ```rust,no_run
-use aimem_core::{Drawer, Embedder, PalaceDb, Searcher};
+use aimem_core::{Drawer, Embedder, AimemDb, Searcher};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let db = PalaceDb::memory().await?;
+    let db = AimemDb::memory().await?;
     let embedder = Embedder::new()?;
 
     let content = "We moved the memory backend to Turso for local vector search.";
@@ -161,11 +161,11 @@ rooms:
 然后：
 
 ```rust,no_run
-use aimem_core::{Miner, PalaceDb};
+use aimem_core::{Miner, AimemDb};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let db = PalaceDb::open("./aimem.db").await?;
+    let db = AimemDb::open("./aimem.db").await?;
 
     // None = 只入文本，不生成 embedding
     let miner = Miner::new(db, None);
@@ -179,11 +179,11 @@ async fn main() -> anyhow::Result<()> {
 ### 6. 导入对话导出文件
 
 ```rust,no_run
-use aimem_core::{convo::ConvoMiner, PalaceDb};
+use aimem_core::{convo::ConvoMiner, AimemDb};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let db = PalaceDb::open("./aimem.db").await?;
+    let db = AimemDb::open("./aimem.db").await?;
     let miner = ConvoMiner::new(db, None);
 
     let stats = miner
@@ -198,12 +198,12 @@ async fn main() -> anyhow::Result<()> {
 ### 7. 生成 wake-up context
 
 ```rust,no_run
-use aimem_core::{Config, Embedder, MemoryStack, PalaceDb};
+use aimem_core::{Config, Embedder, MemoryStack, AimemDb};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let cfg = Config::load()?;
-    let db = PalaceDb::open(&cfg.db_path).await?;
+    let db = AimemDb::open(&cfg.db_path).await?;
     let embedder = Embedder::new()?;
     let stack = MemoryStack::new(db, embedder, &cfg);
 
@@ -216,11 +216,11 @@ async fn main() -> anyhow::Result<()> {
 ### 8. 知识图谱
 
 ```rust,no_run
-use aimem_core::{KnowledgeGraph, PalaceDb};
+use aimem_core::{KnowledgeGraph, AimemDb};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let db = PalaceDb::memory().await?;
+    let db = AimemDb::memory().await?;
     let kg = KnowledgeGraph::new(db);
 
     kg.add_triple("Alice", "works_on", "AiMem", Some("2026-01-01"), None).await?;
@@ -249,7 +249,7 @@ cargo test -p aimem-core --test performance_smoke -- --ignored
 
 ## 实用注意事项
 
-- `PalaceDb::open()` 会自动建表。
+- `AimemDb::open()` 会自动建表。
 - `Miner::new(db, None)` / `ConvoMiner::new(db, None)` 适合离线、无模型、先把文本塞进去。
 - 没有 embedding 的 drawer 依然可以被 `keyword_search()` 找到，但不会出现在 `vector_search()` 结果里。
-- 如果你要做服务端封装，优先把 `PalaceDb` clone 出去复用；它是轻量句柄。
+- 如果你要做服务端封装，优先把 `AimemDb` clone 出去复用；它是轻量句柄。

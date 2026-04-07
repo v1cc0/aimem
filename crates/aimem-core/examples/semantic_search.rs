@@ -1,8 +1,8 @@
-use aimem_core::{Drawer, Embedder, PalaceDb, Searcher};
+use aimem_core::{AimemDb, Drawer, Embedder, Searcher};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let db = PalaceDb::open("./aimem-semantic-example.db").await?;
+    let db = AimemDb::open("./aimem-semantic-example.db").await?;
     let embedder = Embedder::new()?;
 
     let content = "We moved the memory backend to Turso so semantic search stays local.";

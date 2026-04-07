@@ -11,7 +11,7 @@ use thiserror::Error;
 use walkdir::WalkDir;
 
 use crate::{
-    db::{DbError, PalaceDb},
+    db::{AimemDb, DbError},
     embedder::{EmbedError, Embedder},
     types::Drawer,
 };
@@ -159,14 +159,14 @@ pub struct MineStats {
 /// Project file miner.
 #[derive(Debug, Clone)]
 pub struct Miner {
-    db: PalaceDb,
+    db: AimemDb,
     embedder: Option<Embedder>,
 }
 
 impl Miner {
     /// Create a miner with optional embedding support.
     /// Pass `None` for `embedder` to store text only (no vector search).
-    pub fn new(db: PalaceDb, embedder: Option<Embedder>) -> Self {
+    pub fn new(db: AimemDb, embedder: Option<Embedder>) -> Self {
         Self { db, embedder }
     }
 

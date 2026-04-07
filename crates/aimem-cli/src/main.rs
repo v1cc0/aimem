@@ -2,7 +2,7 @@ use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use aimem_core::{
-    Drawer, Embedder, Miner, PalaceDb, SearchResult, Searcher,
+    AimemDb, Drawer, Embedder, Miner, SearchResult, Searcher,
     config::{Config, LEGACY_DB_FILE_NAME},
     convo::ConvoMiner,
     layers::{l0_render, l1_generate},
@@ -123,7 +123,7 @@ struct WakeUpArgs {
 struct RuntimeContext {
     cfg: Config,
     db_path: PathBuf,
-    db: PalaceDb,
+    db: AimemDb,
 }
 
 #[tokio::main]
@@ -340,9 +340,9 @@ async fn load_runtime(db_path: Option<&Path>, palace: Option<&Path>) -> Result<R
     let resolved_db_path = resolve_db_path(&cfg, db_path, palace);
     cfg.db_path = resolved_db_path.clone();
 
-    let db = PalaceDb::open(&resolved_db_path)
+    let db = AimemDb::open(&resolved_db_path)
         .await
-        .with_context(|| format!("failed to open palace DB at {}", resolved_db_path.display()))?;
+        .with_context(|| format!("failed to open AiMem DB at {}", resolved_db_path.display()))?;
 
     Ok(RuntimeContext {
         cfg,

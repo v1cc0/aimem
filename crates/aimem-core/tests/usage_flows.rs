@@ -1,7 +1,7 @@
 use std::fs;
 
 use aimem_core::{
-    KnowledgeGraph, Miner, PalaceDb, Searcher, convo::ConvoMiner, layers::l1_generate,
+    AimemDb, KnowledgeGraph, Miner, Searcher, convo::ConvoMiner, layers::l1_generate,
 };
 use anyhow::Result;
 use tempfile::tempdir;
@@ -32,7 +32,7 @@ rooms:
     )?;
 
     let db_path = temp.path().join("aimem.db");
-    let db = PalaceDb::open(&db_path).await?;
+    let db = AimemDb::open(&db_path).await?;
     let miner = Miner::new(db.clone(), None);
 
     let stats = miner
@@ -73,7 +73,7 @@ async fn convo_miner_imports_marked_transcript() -> Result<()> {
         "> user: Why did we move to Turso?\nWe needed local state and simpler deployment.\n\n> assistant: Because vector search and the database now live in one place.\nThat removed an external dependency.\n\n> user: Record that decision please.\nAbsolutely — the system now keeps memory local and simpler to reason about.\n",
     )?;
 
-    let db = PalaceDb::memory().await?;
+    let db = AimemDb::memory().await?;
     let miner = ConvoMiner::new(db.clone(), None);
     let stats = miner
         .mine(
@@ -100,7 +100,7 @@ async fn convo_miner_imports_marked_transcript() -> Result<()> {
 
 #[tokio::test]
 async fn knowledge_graph_round_trip_works() -> Result<()> {
-    let db = PalaceDb::memory().await?;
+    let db = AimemDb::memory().await?;
     let kg = KnowledgeGraph::new(db);
 
     let triple_id = kg

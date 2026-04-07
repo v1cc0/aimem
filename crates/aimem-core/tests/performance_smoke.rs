@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use aimem_core::{Drawer, PalaceDb, Searcher, layers::l1_generate};
+use aimem_core::{AimemDb, Drawer, Searcher, layers::l1_generate};
 use anyhow::Result;
 
 fn make_drawer(i: usize, room: &str, content: String) -> Drawer {
@@ -19,7 +19,7 @@ fn make_drawer(i: usize, room: &str, content: String) -> Drawer {
 #[tokio::test]
 #[ignore = "performance smoke test; run explicitly"]
 async fn keyword_search_handles_thousands_of_drawers() -> Result<()> {
-    let db = PalaceDb::memory().await?;
+    let db = AimemDb::memory().await?;
 
     for i in 0..3_000usize {
         let content = if i % 250 == 0 {
@@ -51,7 +51,7 @@ async fn keyword_search_handles_thousands_of_drawers() -> Result<()> {
 #[tokio::test]
 #[ignore = "performance smoke test; run explicitly"]
 async fn l1_generation_stays_bounded_on_large_palace() -> Result<()> {
-    let db = PalaceDb::memory().await?;
+    let db = AimemDb::memory().await?;
 
     for i in 0..4_000usize {
         let room = if i % 2 == 0 { "backend" } else { "decisions" };

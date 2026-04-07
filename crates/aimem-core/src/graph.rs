@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use thiserror::Error;
 
 use crate::{
-    db::{DbError, PalaceDb},
+    db::{AimemDb, DbError},
     types::{RoomNode, Tunnel},
 };
 
@@ -20,11 +20,11 @@ pub enum GraphError {
 /// Palace graph traversal.
 #[derive(Debug, Clone)]
 pub struct PalaceGraph {
-    db: PalaceDb,
+    db: AimemDb,
 }
 
 impl PalaceGraph {
-    pub fn new(db: PalaceDb) -> Self {
+    pub fn new(db: AimemDb) -> Self {
         Self { db }
     }
 

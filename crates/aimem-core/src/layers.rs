@@ -14,7 +14,7 @@ use thiserror::Error;
 
 use crate::{
     config::Config,
-    db::{DbError, PalaceDb},
+    db::{AimemDb, DbError},
     embedder::Embedder,
     search::{SearchError, Searcher},
     types::Drawer,
@@ -49,7 +49,7 @@ const L1_MAX_DRAWERS: usize = 15;
 const L1_MAX_CHARS: usize = 3200;
 
 /// Layer 1: top drawers from the palace, grouped by room (~500-800 tokens).
-pub async fn l1_generate(db: &PalaceDb, wing: Option<&str>) -> Result<String, LayerError> {
+pub async fn l1_generate(db: &AimemDb, wing: Option<&str>) -> Result<String, LayerError> {
     let drawers = db.fetch_drawers(wing, None, 200).await?;
 
     if drawers.is_empty() {
@@ -112,7 +112,7 @@ pub async fn l1_generate(db: &PalaceDb, wing: Option<&str>) -> Result<String, La
 
 /// Layer 2: on-demand wing/room filtered retrieval (~200-500 tokens).
 pub async fn l2_retrieve(
-    db: &PalaceDb,
+    db: &AimemDb,
     wing: Option<&str>,
     room: Option<&str>,
     n: usize,
@@ -213,10 +213,10 @@ pub async fn l3_search(
 /// Full 4-layer memory stack.
 ///
 /// ```rust,no_run
-/// use aimem_core::{PalaceDb, Config, Embedder, MemoryStack};
+/// use aimem_core::{AimemDb, Config, Embedder, MemoryStack};
 /// # async fn run() -> anyhow::Result<()> {
 /// let cfg = Config::load()?;
-/// let db = PalaceDb::open(&cfg.db_path).await?;
+/// let db = AimemDb::open(&cfg.db_path).await?;
 /// let embedder = Embedder::new()?;
 /// let stack = MemoryStack::new(db, embedder, &cfg);
 ///
@@ -228,13 +228,13 @@ pub async fn l3_search(
 /// ```
 #[derive(Debug, Clone)]
 pub struct MemoryStack {
-    db: PalaceDb,
+    db: AimemDb,
     searcher: Searcher,
     identity_path: std::path::PathBuf,
 }
 
 impl MemoryStack {
-    pub fn new(db: PalaceDb, embedder: Embedder, cfg: &Config) -> Self {
+    pub fn new(db: AimemDb, embedder: Embedder, cfg: &Config) -> Self {
         let searcher = Searcher::new(db.clone(), embedder);
         Self {
             db,

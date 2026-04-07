@@ -65,7 +65,7 @@ For `0.1.x`, prefer the root-level `aimem_core::{...}` re-exports as the stable 
 Direct module imports such as `aimem_core::miner::...` or `aimem_core::extractor::...` are still public today for backward compatibility with `0.1.0`, but they are a wider surface than we want long term. New integrations should bias toward the root types:
 
 - `Config`
-- `PalaceDb`
+- `AimemDb`
 - `Embedder`
 - `Miner`
 - `ConvoMiner`
@@ -141,11 +141,11 @@ aimem wake-up
 Minimal Rust embedding:
 
 ```rust
-use aimem_core::{Drawer, PalaceDb, Searcher};
+use aimem_core::{Drawer, AimemDb, Searcher};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let db = PalaceDb::open("./aimem.db").await?;
+    let db = AimemDb::open("./aimem.db").await?;
 
     let drawer = Drawer {
         id: "drawer_demo_001".into(),

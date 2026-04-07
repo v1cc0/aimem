@@ -3,7 +3,7 @@
 use std::collections::HashSet;
 
 use crate::{
-    db::{DbError, PalaceDb},
+    db::{AimemDb, DbError},
     embedder::Embedder,
     types::{Drawer, SearchResult},
 };
@@ -24,19 +24,19 @@ pub enum SearchError {
 /// Searcher — vector + keyword search over the palace.
 #[derive(Debug, Clone)]
 pub struct Searcher {
-    db: PalaceDb,
+    db: AimemDb,
     embedder: Option<Embedder>,
 }
 
 impl Searcher {
-    pub fn new(db: PalaceDb, embedder: Embedder) -> Self {
+    pub fn new(db: AimemDb, embedder: Embedder) -> Self {
         Self {
             db,
             embedder: Some(embedder),
         }
     }
 
-    pub fn keyword_only(db: PalaceDb) -> Self {
+    pub fn keyword_only(db: AimemDb) -> Self {
         Self { db, embedder: None }
     }
 

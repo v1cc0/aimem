@@ -1,8 +1,8 @@
-//! PalaceDb — Turso connection wrapper + schema bootstrap.
+//! AimemDb — Turso connection wrapper + schema bootstrap.
 //!
 //! # Overview
 //!
-//! [`PalaceDb`] wraps a [`turso::Database`] and owns the full schema lifecycle.
+//! [`AimemDb`] wraps a [`turso::Database`] and owns the full schema lifecycle.
 //! It is cheaply cloneable (Arc-backed internally) and safe to share across
 //! async tasks.
 //!
@@ -19,12 +19,12 @@
 //! ## Example
 //!
 //! ```rust,no_run
-//! use aimem_core::{Drawer, PalaceDb};
+//! use aimem_core::{Drawer, AimemDb};
 //! use chrono::Utc;
 //!
 //! # #[tokio::main] async fn main() -> anyhow::Result<()> {
 //! // In-memory DB — perfect for tests
-//! let db = PalaceDb::memory().await?;
+//! let db = AimemDb::memory().await?;
 //!
 //! let drawer = Drawer {
 //!     id: "d_001".into(),
@@ -115,18 +115,18 @@ CREATE INDEX IF NOT EXISTS idx_triples_valid     ON triples(valid_from, valid_to
 ///
 /// Clone is cheap — the underlying `Database` is `Arc`-wrapped.
 #[derive(Clone)]
-pub struct PalaceDb {
+pub struct AimemDb {
     db: Database,
 }
 
-impl std::fmt::Debug for PalaceDb {
+impl std::fmt::Debug for AimemDb {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("PalaceDb").finish_non_exhaustive()
+        f.debug_struct("AimemDb").finish_non_exhaustive()
     }
 }
 
-impl PalaceDb {
-    /// Open (or create) the palace DB at the given path and run schema migrations.
+impl AimemDb {
+    /// Open (or create) the AiMem DB at the given path and run schema migrations.
     pub async fn open(path: impl AsRef<Path>) -> DbResult<Self> {
         let path = path.as_ref();
         if let Some(parent) = path.parent() {
@@ -135,17 +135,17 @@ impl PalaceDb {
 
         let path_str = path.to_string_lossy();
         let db = Builder::new_local(path_str.as_ref()).build().await?;
-        let palace = Self { db };
-        palace.migrate().await?;
-        Ok(palace)
+        let aimem_db = Self { db };
+        aimem_db.migrate().await?;
+        Ok(aimem_db)
     }
 
     /// Open an in-memory DB (for tests).
     pub async fn memory() -> DbResult<Self> {
         let db = Builder::new_local(":memory:").build().await?;
-        let palace = Self { db };
-        palace.migrate().await?;
-        Ok(palace)
+        let aimem_db = Self { db };
+        aimem_db.migrate().await?;
+        Ok(aimem_db)
     }
 
     /// Acquire a connection from the database.

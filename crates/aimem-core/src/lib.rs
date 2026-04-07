@@ -61,7 +61,7 @@
 //! ```
 //!
 //! ```rust,no_run
-//! use aimem_core::{Config, Embedder, MemoryStack, PalaceDb};
+//! use aimem_core::{Config, Embedder, MemoryStack, AimemDb};
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
@@ -69,7 +69,7 @@
 //!     let cfg = Config::load()?;
 //!
 //!     // 2. Open the palace (creates DB + schema on first run)
-//!     let db = PalaceDb::open(&cfg.db_path).await?;
+//!     let db = AimemDb::open(&cfg.db_path).await?;
 //!
 //!     // 3. Load local embedding model (downloads ~23 MB on first use)
 //!     let embedder = Embedder::new()?;
@@ -90,12 +90,12 @@
 //! ## Mining a project
 //!
 //! ```rust,no_run
-//! use aimem_core::{Config, Embedder, Miner, PalaceDb};
+//! use aimem_core::{Config, Embedder, Miner, AimemDb};
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
 //!     let cfg = Config::load()?;
-//!     let db = PalaceDb::open(&cfg.db_path).await?;
+//!     let db = AimemDb::open(&cfg.db_path).await?;
 //!     let embedder = Embedder::new()?;
 //!
 //!     let miner = Miner::new(db, Some(embedder));
@@ -118,11 +118,11 @@
 //! drawers still participate in SQL keyword search even though they have no embeddings.
 //!
 //! ```rust,no_run
-//! use aimem_core::{Drawer, PalaceDb, Searcher};
+//! use aimem_core::{Drawer, AimemDb, Searcher};
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
-//!     let db = PalaceDb::memory().await?;
+//!     let db = AimemDb::memory().await?;
 //!     let drawer = Drawer {
 //!         id: "drawer_kw_001".into(),
 //!         wing: "demo".into(),
@@ -145,11 +145,11 @@
 //! ## Knowledge graph
 //!
 //! ```rust,no_run
-//! use aimem_core::{KnowledgeGraph, PalaceDb};
+//! use aimem_core::{KnowledgeGraph, AimemDb};
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
-//!     let db = PalaceDb::memory().await?; // in-memory for demo
+//!     let db = AimemDb::memory().await?; // in-memory for demo
 //!     let kg = KnowledgeGraph::new(db);
 //!
 //!     // Store a temporal fact
@@ -172,11 +172,11 @@
 //! ## Low-level storage operations
 //!
 //! ```rust,no_run
-//! use aimem_core::{Drawer, Embedder, PalaceDb};
+//! use aimem_core::{Drawer, Embedder, AimemDb};
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
-//!     let db = PalaceDb::memory().await?;
+//!     let db = AimemDb::memory().await?;
 //!     let embedder = Embedder::new()?;
 //!
 //!     let content = "We decided to use Rust for performance and memory safety.";
@@ -238,7 +238,7 @@ pub mod types;
 
 pub use config::Config;
 pub use convo::{ConvoMineStats, ConvoMiner};
-pub use db::PalaceDb;
+pub use db::AimemDb;
 pub use embedder::Embedder;
 pub use graph::{PalaceGraph, TraversalNode};
 pub use knowledge::KnowledgeGraph;

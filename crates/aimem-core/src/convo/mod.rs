@@ -15,7 +15,7 @@ use thiserror::Error;
 use walkdir::WalkDir;
 
 use crate::{
-    db::{DbError, PalaceDb},
+    db::{AimemDb, DbError},
     embedder::{EmbedError, Embedder},
     miner::{MIN_CHUNK, chunk_text},
     types::Drawer,
@@ -55,12 +55,12 @@ pub struct ConvoMineStats {
 /// Conversation miner.
 #[derive(Debug, Clone)]
 pub struct ConvoMiner {
-    db: PalaceDb,
+    db: AimemDb,
     embedder: Option<Embedder>,
 }
 
 impl ConvoMiner {
-    pub fn new(db: PalaceDb, embedder: Option<Embedder>) -> Self {
+    pub fn new(db: AimemDb, embedder: Option<Embedder>) -> Self {
         Self { db, embedder }
     }
 
