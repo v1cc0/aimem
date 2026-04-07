@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-04-08
+
 ### Added
 - README quick start with minimal CLI and Rust embedding examples.
 - README architecture diagram for the core/cli/mcp split.
