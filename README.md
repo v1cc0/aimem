@@ -1,5 +1,10 @@
 # aimem
 
+[![Rust CI](https://github.com/v1cc0/aimem/actions/workflows/rust.yml/badge.svg)](https://github.com/v1cc0/aimem/actions/workflows/rust.yml)
+[![crates.io: aimem-core](https://img.shields.io/crates/v/aimem-core)](https://crates.io/crates/aimem-core)
+[![crates.io: aimem-cli](https://img.shields.io/crates/v/aimem-cli)](https://crates.io/crates/aimem-cli)
+[![crates.io: aimem-mcp](https://img.shields.io/crates/v/aimem-mcp)](https://crates.io/crates/aimem-mcp)
+
 Inspired by https://github.com/milla-jovovich/mempalace
 
 Rust-first local memory infrastructure for AI agents.
@@ -39,6 +44,27 @@ cargo build
 ```bash
 cargo test
 cargo test -p aimem-core --test performance_smoke -- --ignored
+```
+
+## Install
+
+CLI:
+
+```bash
+cargo install aimem-cli
+```
+
+MCP server:
+
+```bash
+cargo install aimem-mcp
+```
+
+Library:
+
+```toml
+[dependencies]
+aimem-core = "0.1.0"
 ```
 
 ## CLI
