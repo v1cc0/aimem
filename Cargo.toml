@@ -1,0 +1,62 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/aimem-core",
+  "crates/aimem-cli",
+  "crates/aimem-mcp",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+authors = ["v1cc0 <vc@v1cc0.eu.org>"]
+homepage = "https://github.com/v1cc0/aimem"
+repository = "https://github.com/v1cc0/aimem"
+
+[workspace.dependencies]
+# Turso — crates.io latest verified on 2026-04-07 via `cargo search turso`
+turso = { version = "0.6.0-pre.15", default-features = false }
+
+# Async
+tokio = { version = "1", features = ["full"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+
+# Error handling
+thiserror = "2"
+anyhow = "1"
+
+# Embedding generation (local, no API key)
+# hf-hub: needed for TextEmbedding::try_new (model download from HuggingFace)
+fastembed = { version = "5", default-features = false, features = [
+  "ort-download-binaries",
+  "hf-hub",
+] }
+
+# Hashing (drawer IDs)
+md5 = "0.8"
+
+# File system traversal
+walkdir = "2"
+
+# Regex (extractor patterns)
+regex = "1"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# CLI
+clap = { version = "4", features = ["derive"] }
+
+# Date/time
+chrono = { version = "0.4", features = ["serde"] }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1

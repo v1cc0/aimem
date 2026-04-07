@@ -1,0 +1,32 @@
+[package]
+name = "aimem-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "Core library for AiMem — give your AI a memory. Vector search + knowledge graph over Turso."
+keywords = ["ai", "memory", "vector-search", "knowledge-graph", "mcp"]
+categories = ["database", "text-processing"]
+readme = "README.md"
+
+[dependencies]
+turso.workspace = true
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+fastembed.workspace = true
+md5.workspace = true
+walkdir.workspace = true
+regex.workspace = true
+tracing.workspace = true
+chrono.workspace = true
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full", "test-util"] }
+tempfile = "3"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

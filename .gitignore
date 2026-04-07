@@ -1,0 +1,7 @@
+target/
+.fastembed_cache/
+PROGRESS.md
+INCIDENTS.md
+AGENTS.md
+CLAUDE.md
+GEMINI.md

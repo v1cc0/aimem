@@ -1,0 +1,21 @@
+[package]
+name = "aimem-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+description = "CLI for AiMem"
+
+[[bin]]
+name = "aimem"
+path = "src/main.rs"
+
+[dependencies]
+aimem-core = { path = "../aimem-core" }
+tokio.workspace = true
+clap.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true

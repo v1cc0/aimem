@@ -1,0 +1,24 @@
+[package]
+name = "aimem-mcp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+description = "MCP server for AiMem"
+
+[[bin]]
+name = "aimem-mcp"
+path = "src/main.rs"
+
+[dependencies]
+aimem-core = { path = "../aimem-core" }
+tokio.workspace = true
+turso.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+md5.workspace = true
+chrono.workspace = true
