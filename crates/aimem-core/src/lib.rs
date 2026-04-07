@@ -26,7 +26,7 @@
 //! │  L0  Identity text           ~100 tokens   always loaded │
 //! │  L1  Essential story         ~500-800 tok  always loaded │
 //! │  L2  On-demand recall        ~200-500 tok  loaded on ask │
-//! │  L3  Deep semantic search    unlimited     full palace   │
+//! │  L3  Deep semantic search    unlimited     full memory   │
 //! └─────────────────────────────────────────────────────────┘
 //! ```
 //!
@@ -45,7 +45,7 @@
 //!
 //! | Term | Meaning |
 //! |------|---------|
-//! | **Palace** | The entire memory store (one DB file) |
+//! | **Store** | The entire AiMem memory store (one DB file) |
 //! | **Wing** | A named project or domain (e.g. `"my_app"`, `"journal"`) |
 //! | **Room** | A topic within a wing (e.g. `"backend"`, `"decisions"`) |
 //! | **Drawer** | One verbatim text chunk (800 chars) with its embedding |
@@ -56,8 +56,11 @@
 //! ```toml
 //! # Cargo.toml
 //! [dependencies]
-//! aimem-core = "0.1.0"
 //! tokio = { version = "1", features = ["full"] }
+//! ```
+//!
+//! ```bash
+//! cargo add aimem-core
 //! ```
 //!
 //! ```rust,no_run
@@ -68,7 +71,7 @@
 //!     // 1. Load config (env > ~/.aimem/config.json > defaults)
 //!     let cfg = Config::load()?;
 //!
-//!     // 2. Open the palace (creates DB + schema on first run)
+//!     // 2. Open the AiMem DB (creates DB + schema on first run)
 //!     let db = AimemDb::open(&cfg.db_path).await?;
 //!
 //!     // 3. Load local embedding model (downloads ~23 MB on first use)
@@ -219,10 +222,8 @@
 //! ```
 //!
 //! The public re-exports in this file form the stable API surface.
-//! For `0.1.x`, consumers should prefer `aimem_core::{...}` root imports over
-//! deep module paths. Some helper modules are already public due to `0.1.0`
-//! compatibility and therefore remain supported, but they are a wider API
-//! surface than new integrations should depend on.
+//! Consumers should prefer `aimem_core::{...}` root imports over deep module
+//! paths. The root re-exports are the intended stable integration surface.
 
 pub mod config;
 pub mod convo;
@@ -240,7 +241,7 @@ pub use config::Config;
 pub use convo::{ConvoMineStats, ConvoMiner};
 pub use db::AimemDb;
 pub use embedder::Embedder;
-pub use graph::{PalaceGraph, TraversalNode};
+pub use graph::{AimemGraph, TraversalNode};
 pub use knowledge::KnowledgeGraph;
 pub use layers::MemoryStack;
 pub use miner::Miner;

@@ -9,7 +9,7 @@ use chrono::Utc;
 use serde_json::{Map, Value, json};
 use tracing_subscriber::EnvFilter;
 
-const PALACE_PROTOCOL: &str = "IMPORTANT — AiMem Memory Protocol:\n1. ON WAKE-UP: Call aimem_status to load palace overview + AAAK spec.\n2. BEFORE RESPONDING about any person, project, or past event: call aimem_search FIRST. Never guess — verify.\n3. IF UNSURE about a fact: say 'let me check' and query the palace. Wrong is worse than slow.\n4. STORAGE is not memory; storage + retrieval protocol is memory.";
+const AIMEM_PROTOCOL: &str = "IMPORTANT — AiMem Memory Protocol:\n1. ON WAKE-UP: Call aimem_status to load the AiMem overview + AAAK spec.\n2. BEFORE RESPONDING about any person, project, or past event: call aimem_search FIRST. Never guess — verify.\n3. IF UNSURE about a fact: say 'let me check' and query AiMem. Wrong is worse than slow.\n4. STORAGE is not memory; storage + retrieval protocol is memory.";
 
 const AAAK_SPEC: &str = "AAAK is AiMem's compressed memory dialect.\n- ENTITIES: short uppercase codes\n- EMOTIONS: *markers* inline\n- STRUCTURE: compact pipe-separated fields\n- DATES: ISO-8601\nRead it naturally; write it tightly.";
 
@@ -61,7 +61,7 @@ impl ServerState {
             "wings": counts_vec_to_map(wings),
             "rooms": counts_vec_to_map(rooms),
             "db_path": self.cfg.db_path.display().to_string(),
-            "protocol": PALACE_PROTOCOL,
+            "protocol": AIMEM_PROTOCOL,
             "aaak_dialect": AAAK_SPEC,
         }))
     }
@@ -534,7 +534,7 @@ fn tool_specs() -> Vec<Value> {
     vec![
         tool_spec(
             "aimem_status",
-            "Palace overview — total drawers, wing and room counts.",
+            "AiMem overview — total drawers, wing and room counts.",
             json!({ "type": "object", "properties": {} }),
         ),
         tool_spec(
@@ -564,7 +564,7 @@ fn tool_specs() -> Vec<Value> {
         ),
         tool_spec(
             "aimem_search",
-            "Search the palace. Prefers semantic results when available, falls back to keyword search.",
+            "Search AiMem. Prefers semantic results when available, falls back to keyword search.",
             json!({
                 "type": "object",
                 "properties": {
@@ -578,7 +578,7 @@ fn tool_specs() -> Vec<Value> {
         ),
         tool_spec(
             "aimem_check_duplicate",
-            "Check whether content already exists in the palace.",
+            "Check whether content already exists in AiMem.",
             json!({
                 "type": "object",
                 "properties": {
@@ -591,7 +591,7 @@ fn tool_specs() -> Vec<Value> {
         ),
         tool_spec(
             "aimem_add_drawer",
-            "File verbatim content into the palace, checking duplicates first.",
+            "File verbatim content into AiMem, checking duplicates first.",
             json!({
                 "type": "object",
                 "properties": {

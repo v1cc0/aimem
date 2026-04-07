@@ -2,7 +2,7 @@
 //!
 //! ```text
 //! L0  Identity        (~100 tokens)   Always loaded — identity.txt
-//! L1  Essential Story (~500-800 tok)  Top drawers from the palace
+//! L1  Essential Story (~500-800 tok)  Top drawers from AiMem
 //! L2  On-Demand       (~200-500 tok)  Wing/room filtered retrieval
 //! L3  Deep Search     (unlimited)     Turso vector_distance_cos semantic search
 //! ```
@@ -48,7 +48,7 @@ pub async fn l0_render(identity_path: &Path) -> String {
 const L1_MAX_DRAWERS: usize = 15;
 const L1_MAX_CHARS: usize = 3200;
 
-/// Layer 1: top drawers from the palace, grouped by room (~500-800 tokens).
+/// Layer 1: top drawers from AiMem, grouped by room (~500-800 tokens).
 pub async fn l1_generate(db: &AimemDb, wing: Option<&str>) -> Result<String, LayerError> {
     let drawers = db.fetch_drawers(wing, None, 200).await?;
 

@@ -9,9 +9,11 @@ All notable changes to this project will be documented in this file.
 - README architecture diagram for the core/cli/mcp split.
 
 ### Changed
-- Renamed the public database handle from `PalaceDb` to `AimemDb`. This is a breaking API change, so the next publish should be `0.2.0`, not `0.1.1`.
+- Renamed the public database handle from `PalaceDb` to `AimemDb`.
+- Renamed `PalaceGraph` to `AimemGraph`.
+- Removed legacy compatibility paths around `palace.db`, `AIMEM_PALACE_PATH`, and the CLI `--palace` flag.
 - Explicit `rust-version = 1.85` for the 2024 edition workspace.
-- Documented that `0.1.x` integrations should prefer `aimem_core::{...}` root re-exports as the stable API surface.
+- Documented that `aimem_core::{...}` root re-exports are the preferred stable API surface.
 - Tightened top-level README wording for a more production-facing project description.
 
 ## [0.1.0] - 2026-04-08

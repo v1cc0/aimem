@@ -1,4 +1,4 @@
-//! Conversation miner — mine chat exports into the palace.
+//! Conversation miner — mine chat exports into AiMem.
 //!
 //! Supported formats (via normalize module):
 //!   - Plain text with `>` markers
@@ -64,7 +64,7 @@ impl ConvoMiner {
         Self { db, embedder }
     }
 
-    /// Mine a directory of conversation exports into the palace.
+    /// Mine a directory of conversation exports into AiMem.
     pub async fn mine(
         &self,
         convo_dir: impl AsRef<Path>,

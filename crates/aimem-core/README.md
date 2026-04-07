@@ -8,15 +8,18 @@
 
 ```toml
 [dependencies]
-aimem-core = "0.1.0"
 tokio = { version = "1", features = ["full"] }
+```
+
+```bash
+cargo add aimem-core
 ```
 
 `aimem-core` 自己会依赖 Turso；你通常不需要手工再加一份 `turso`，除非你要直接操作底层连接。
 
-## API 稳定性（0.1.x）
+## API 稳定性
 
-`aimem-core` 在 `0.1.x` 阶段建议把 crate 根导出的类型当作稳定入口使用，也就是优先从：
+`aimem-core` 建议把 crate 根导出的类型当作稳定入口使用，也就是优先从：
 
 ```rust
 use aimem_core::{Config, AimemDb, Embedder, Miner, ConvoMiner, Searcher, KnowledgeGraph, MemoryStack};
@@ -24,7 +27,7 @@ use aimem_core::{Config, AimemDb, Embedder, Miner, ConvoMiner, Searcher, Knowled
 
 来接入，而不是直接依赖更深层的模块路径。
 
-原因很简单：`0.1.0` 已经把一些内部 helper 也暴露成了 public，这意味着它们现在不能在小版本里随便拿掉，否则会直接破坏 userspace。后续版本会继续兼容这批已公开 API，但新接入方最好把依赖面收敛到 crate 根 re-export 和少数核心数据类型上。
+原因很简单：直接依赖更深层模块路径会把你的代码绑到更宽的 API 面上。新接入方最好把依赖面收敛到 crate 根 re-export 和少数核心数据类型上。
 
 ## 什么时候该用它
 
@@ -34,7 +37,7 @@ use aimem_core::{Config, AimemDb, Embedder, Miner, ConvoMiner, Searcher, Knowled
 
 ## 核心概念
 
-- **Palace**：整个记忆库，一个 Turso DB 文件
+- **Store**：整个 AiMem 记忆库，一个 Turso DB 文件
 - **Wing**：项目或领域，例如 `my_app`
 - **Room**：主题，例如 `backend`、`decisions`
 - **Drawer**：一段原文切片
@@ -42,7 +45,7 @@ use aimem_core::{Config, AimemDb, Embedder, Miner, ConvoMiner, Searcher, Knowled
 
 ## 用法总览
 
-### 1. 打开/创建一个 palace
+### 1. 打开/创建一个 AiMem DB
 
 ```rust,no_run
 use aimem_core::AimemDb;
@@ -235,7 +238,7 @@ async fn main() -> anyhow::Result<()> {
 
 这个 crate 附带了可编译示例：
 
-- `cargo run -p aimem-core --example basic_palace`
+- `cargo run -p aimem-core --example basic_aimem`
 - `cargo run -p aimem-core --example semantic_search`
 - `cargo run -p aimem-core --example knowledge_graph`
 

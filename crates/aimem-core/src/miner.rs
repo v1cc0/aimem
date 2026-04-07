@@ -1,4 +1,4 @@
-//! File miner — scan a project directory and file chunks into the palace.
+//! File miner — scan a project directory and file chunks into AiMem.
 //!
 //! Mirrors Python's miner.py.  Reads `aimem.yaml` from the project root
 //! to discover the wing name and room definitions.
@@ -94,8 +94,6 @@ static SKIP_DIRS: &[&str] = &[
 static SKIP_FILES: &[&str] = &[
     "aimem.yaml",
     "aimem.yml",
-    "mempal.yaml",
-    "mempal.yml",
     ".gitignore",
     "package-lock.json",
     "Cargo.lock",
@@ -131,11 +129,8 @@ impl ProjectConfig {
     pub fn load(project_dir: impl AsRef<Path>) -> Result<Self, MinerError> {
         let dir = project_dir.as_ref();
         let yaml = dir.join("aimem.yaml");
-        let legacy = dir.join("mempal.yaml");
         let path = if yaml.exists() {
             yaml
-        } else if legacy.exists() {
-            legacy
         } else {
             return Err(MinerError::ConfigNotFound(dir.display().to_string()));
         };
@@ -170,7 +165,7 @@ impl Miner {
         Self { db, embedder }
     }
 
-    /// Mine a project directory into the palace.
+    /// Mine a project directory into AiMem.
     ///
     /// # Arguments
     /// * `project_dir`   — path to the project root (must contain `aimem.yaml`)

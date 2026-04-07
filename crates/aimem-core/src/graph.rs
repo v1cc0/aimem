@@ -1,4 +1,4 @@
-//! Palace graph — traverse rooms and wings in the palace.
+//! AiMem graph — traverse rooms and wings in the memory store.
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
@@ -17,18 +17,18 @@ pub enum GraphError {
     Turso(#[from] turso::Error),
 }
 
-/// Palace graph traversal.
+/// AiMem graph traversal.
 #[derive(Debug, Clone)]
-pub struct PalaceGraph {
+pub struct AimemGraph {
     db: AimemDb,
 }
 
-impl PalaceGraph {
+impl AimemGraph {
     pub fn new(db: AimemDb) -> Self {
         Self { db }
     }
 
-    /// Build full room→wings mapping from the palace.
+    /// Build full room→wings mapping from the memory store.
     pub async fn build(&self) -> Result<(Vec<RoomNode>, Vec<Tunnel>), GraphError> {
         let conn = self.db.conn()?;
         let mut room_wings: HashMap<String, (HashSet<String>, i64)> = HashMap::new();

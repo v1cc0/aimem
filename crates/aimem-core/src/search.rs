@@ -1,4 +1,4 @@
-//! Semantic search and FTS over the palace.
+//! Semantic search and FTS over the AiMem store.
 
 use std::collections::HashSet;
 
@@ -21,7 +21,7 @@ pub enum SearchError {
     Turso(#[from] turso::Error),
 }
 
-/// Searcher — vector + keyword search over the palace.
+/// Searcher — vector + keyword search over the AiMem store.
 #[derive(Debug, Clone)]
 pub struct Searcher {
     db: AimemDb,

@@ -3,7 +3,7 @@
 //! # Model
 //!
 //! Uses `all-MiniLM-L6-v2` (384 dimensions), the same model ChromaDB defaults to,
-//! so embeddings produced here are semantically comparable to an existing ChromaDB palace.
+//! so embeddings produced here are semantically comparable to an existing ChromaDB setup.
 //!
 //! The ONNX model (~23 MB) is downloaded from HuggingFace Hub on first call and
 //! cached at `~/.cache/huggingface/hub/`. Subsequent calls are instant.

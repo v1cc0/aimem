@@ -18,8 +18,3 @@ aimem mine /path/to/project --no-embed
 ```
 
 Default local database path: `~/.aimem/aimem.db`
-
-Legacy compatibility:
-
-- if `~/.aimem/palace.db` already exists, AiMem still opens it automatically
-- `--palace` keeps the legacy `<DIR>/palace.db` behavior

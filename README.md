@@ -60,9 +60,9 @@ The shape is intentionally simple: one local DB file, thin CLI/MCP frontends, an
 
 ## API stability
 
-For `0.1.x`, prefer the root-level `aimem_core::{...}` re-exports as the stable integration surface.
+Prefer the root-level `aimem_core::{...}` re-exports as the stable integration surface.
 
-Direct module imports such as `aimem_core::miner::...` or `aimem_core::extractor::...` are still public today for backward compatibility with `0.1.0`, but they are a wider surface than we want long term. New integrations should bias toward the root types:
+Deep module imports such as `aimem_core::miner::...` or `aimem_core::extractor::...` are a wider surface than new integrations should depend on. New code should bias toward the root types:
 
 - `Config`
 - `AimemDb`
@@ -103,9 +103,8 @@ cargo install aimem-mcp
 
 Library:
 
-```toml
-[dependencies]
-aimem-core = "0.1.0"
+```bash
+cargo add aimem-core
 ```
 
 ## Quick start
@@ -204,8 +203,6 @@ Default local paths:
 
 - database: `~/.aimem/aimem.db`
 - identity: `~/.aimem/identity.txt`
-
-If an older `~/.aimem/palace.db` already exists, AiMem still opens it automatically for backward compatibility.
 
 Environment overrides:
 

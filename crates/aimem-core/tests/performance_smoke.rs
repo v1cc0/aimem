@@ -50,7 +50,7 @@ async fn keyword_search_handles_thousands_of_drawers() -> Result<()> {
 
 #[tokio::test]
 #[ignore = "performance smoke test; run explicitly"]
-async fn l1_generation_stays_bounded_on_large_palace() -> Result<()> {
+async fn l1_generation_stays_bounded_on_large_store() -> Result<()> {
     let db = AimemDb::memory().await?;
 
     for i in 0..4_000usize {

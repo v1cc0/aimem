@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-/// A drawer — one verbatim text chunk stored in the palace.
+/// A drawer — one verbatim text chunk stored in AiMem.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Drawer {
     pub id: String,
@@ -62,7 +62,7 @@ pub struct Triple {
     pub current: bool,
 }
 
-/// A room-level graph node for palace graph traversal.
+/// A room-level graph node for AiMem graph traversal.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoomNode {
     pub room: String,
@@ -70,7 +70,7 @@ pub struct RoomNode {
     pub drawer_count: i64,
 }
 
-/// An edge in the palace graph — a room that spans multiple wings.
+/// An edge in the AiMem graph — a room that spans multiple wings.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Tunnel {
     pub room: String,

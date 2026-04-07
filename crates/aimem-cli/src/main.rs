@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use aimem_core::{
     AimemDb, Drawer, Embedder, Miner, SearchResult, Searcher,
-    config::{Config, LEGACY_DB_FILE_NAME},
+    config::Config,
     convo::ConvoMiner,
     layers::{l0_render, l1_generate},
 };
@@ -22,17 +22,7 @@ struct Cli {
     #[arg(
         long,
         global = true,
-        value_name = "DIR",
-        conflicts_with = "db_path",
-        help = "Legacy palace directory. Stores the DB at <DIR>/palace.db."
-    )]
-    palace: Option<PathBuf>,
-
-    #[arg(
-        long,
-        global = true,
         value_name = "FILE",
-        conflicts_with = "palace",
         help = "Explicit path to the Turso DB file."
     )]
     db_path: Option<PathBuf>,
@@ -52,14 +42,14 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    /// Mine project files or conversation exports into the palace.
+    /// Mine project files or conversation exports into AiMem.
     Mine(MineArgs),
-    /// Semantic search over the palace.
+    /// Semantic search over AiMem.
     Search(SearchArgs),
     /// Render L0 + L1 wake-up context.
     #[command(name = "wake-up", alias = "wakeup")]
     WakeUp(WakeUpArgs),
-    /// Show palace overview.
+    /// Show AiMem overview.
     Status,
 }
 
@@ -136,7 +126,6 @@ async fn main() {
 
 async fn run() -> Result<()> {
     let Cli {
-        palace,
         db_path,
         verbose,
         command,
@@ -145,10 +134,10 @@ async fn run() -> Result<()> {
     init_tracing(verbose)?;
 
     match command {
-        Command::Mine(args) => cmd_mine(db_path.as_deref(), palace.as_deref(), args).await,
-        Command::Search(args) => cmd_search(db_path.as_deref(), palace.as_deref(), args).await,
-        Command::WakeUp(args) => cmd_wake_up(db_path.as_deref(), palace.as_deref(), args).await,
-        Command::Status => cmd_status(db_path.as_deref(), palace.as_deref()).await,
+        Command::Mine(args) => cmd_mine(db_path.as_deref(), args).await,
+        Command::Search(args) => cmd_search(db_path.as_deref(), args).await,
+        Command::WakeUp(args) => cmd_wake_up(db_path.as_deref(), args).await,
+        Command::Status => cmd_status(db_path.as_deref()).await,
     }
 }
 
@@ -173,8 +162,8 @@ fn init_tracing(verbose: u8) -> Result<()> {
     Ok(())
 }
 
-async fn cmd_mine(db_path: Option<&Path>, palace: Option<&Path>, args: MineArgs) -> Result<()> {
-    let runtime = load_runtime(db_path, palace).await?;
+async fn cmd_mine(db_path: Option<&Path>, args: MineArgs) -> Result<()> {
+    let runtime = load_runtime(db_path).await?;
     let embedder = if args.no_embed {
         None
     } else {
@@ -231,8 +220,8 @@ async fn cmd_mine(db_path: Option<&Path>, palace: Option<&Path>, args: MineArgs)
     Ok(())
 }
 
-async fn cmd_search(db_path: Option<&Path>, palace: Option<&Path>, args: SearchArgs) -> Result<()> {
-    let runtime = load_runtime(db_path, palace).await?;
+async fn cmd_search(db_path: Option<&Path>, args: SearchArgs) -> Result<()> {
+    let runtime = load_runtime(db_path).await?;
     let keyword_searcher = Searcher::keyword_only(runtime.db.clone());
     let keyword_results = keyword_searcher
         .keyword_fallback_search(
@@ -279,20 +268,16 @@ async fn cmd_search(db_path: Option<&Path>, palace: Option<&Path>, args: SearchA
     Ok(())
 }
 
-async fn cmd_wake_up(
-    db_path: Option<&Path>,
-    palace: Option<&Path>,
-    args: WakeUpArgs,
-) -> Result<()> {
-    let runtime = load_runtime(db_path, palace).await?;
+async fn cmd_wake_up(db_path: Option<&Path>, args: WakeUpArgs) -> Result<()> {
+    let runtime = load_runtime(db_path).await?;
     let l0 = l0_render(&runtime.cfg.identity_path).await;
     let l1 = l1_generate(&runtime.db, args.wing.as_deref()).await?;
     println!("{l0}\n\n{l1}");
     Ok(())
 }
 
-async fn cmd_status(db_path: Option<&Path>, palace: Option<&Path>) -> Result<()> {
-    let runtime = load_runtime(db_path, palace).await?;
+async fn cmd_status(db_path: Option<&Path>) -> Result<()> {
+    let runtime = load_runtime(db_path).await?;
     let total_drawers = runtime.db.drawer_count().await?;
     let (wings, rooms) = runtime.db.taxonomy().await?;
     let identity_exists = runtime.cfg.identity_path.exists();
@@ -335,9 +320,9 @@ async fn cmd_status(db_path: Option<&Path>, palace: Option<&Path>) -> Result<()>
     Ok(())
 }
 
-async fn load_runtime(db_path: Option<&Path>, palace: Option<&Path>) -> Result<RuntimeContext> {
+async fn load_runtime(db_path: Option<&Path>) -> Result<RuntimeContext> {
     let mut cfg = Config::load().context("failed to load config")?;
-    let resolved_db_path = resolve_db_path(&cfg, db_path, palace);
+    let resolved_db_path = resolve_db_path(&cfg, db_path);
     cfg.db_path = resolved_db_path.clone();
 
     let db = AimemDb::open(&resolved_db_path)
@@ -351,13 +336,9 @@ async fn load_runtime(db_path: Option<&Path>, palace: Option<&Path>) -> Result<R
     })
 }
 
-fn resolve_db_path(cfg: &Config, db_path: Option<&Path>, palace: Option<&Path>) -> PathBuf {
+fn resolve_db_path(cfg: &Config, db_path: Option<&Path>) -> PathBuf {
     if let Some(path) = db_path {
         return expand_home(path);
-    }
-
-    if let Some(dir) = palace {
-        return expand_home(dir).join(LEGACY_DB_FILE_NAME);
     }
 
     cfg.db_path.clone()
@@ -538,12 +519,5 @@ mod tests {
             }
             other => panic!("expected mine command, got {other:?}"),
         }
-    }
-
-    #[test]
-    fn palace_dir_resolves_to_legacy_palace_db() {
-        let cfg = Config::default();
-        let resolved = resolve_db_path(&cfg, None, Some(Path::new("~/tmp/palace")));
-        assert!(resolved.ends_with(format!("tmp/palace/{LEGACY_DB_FILE_NAME}")));
     }
 }

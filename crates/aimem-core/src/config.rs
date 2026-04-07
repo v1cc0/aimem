@@ -2,7 +2,6 @@
 //!
 //! Load order: env vars > config file (~/.aimem/config.json) > defaults
 
-use std::path::Path;
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
@@ -18,10 +17,9 @@ pub enum ConfigError {
 
 /// Default path for the Turso DB file (all data in one file).
 pub const DEFAULT_DB_FILE_NAME: &str = "aimem.db";
-pub const LEGACY_DB_FILE_NAME: &str = "palace.db";
 
 pub fn default_db_path() -> PathBuf {
-    resolve_default_db_path(&dirs_next())
+    dirs_next().join(DEFAULT_DB_FILE_NAME)
 }
 
 /// Default path for the identity file.
@@ -34,22 +32,12 @@ fn dirs_next() -> PathBuf {
     PathBuf::from(home).join(".aimem")
 }
 
-fn resolve_default_db_path(dir: &Path) -> PathBuf {
-    let preferred = dir.join(DEFAULT_DB_FILE_NAME);
-    if preferred.exists() {
-        return preferred;
-    }
-
-    let legacy = dir.join(LEGACY_DB_FILE_NAME);
-    if legacy.exists() { legacy } else { preferred }
-}
-
-fn resolve_db_override(raw: &str, db_file_name: &str) -> PathBuf {
+fn resolve_db_override(raw: &str) -> PathBuf {
     let path = PathBuf::from(shellexpand(raw));
     if path.extension().is_some() {
         path
     } else {
-        path.join(db_file_name)
+        path.join(DEFAULT_DB_FILE_NAME)
     }
 }
 
@@ -121,11 +109,7 @@ impl Config {
 
         // Override from env vars
         if let Ok(p) = std::env::var("AIMEM_DB_PATH") {
-            // AIMEM_DB_PATH prefers the new default filename when given a directory.
-            cfg.db_path = resolve_db_override(&p, DEFAULT_DB_FILE_NAME);
-        } else if let Ok(p) = std::env::var("AIMEM_PALACE_PATH") {
-            // Legacy AIMEM_PALACE_PATH keeps the original palace.db semantics.
-            cfg.db_path = resolve_db_override(&p, LEGACY_DB_FILE_NAME);
+            cfg.db_path = resolve_db_override(&p);
         }
         if let Ok(p) = std::env::var("AIMEM_IDENTITY_PATH") {
             cfg.identity_path = PathBuf::from(shellexpand(&p));
@@ -162,34 +146,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn default_db_path_prefers_new_name_when_no_db_exists() {
-        let dir = tempfile::tempdir().expect("failed to create temp dir");
-        let resolved = resolve_default_db_path(dir.path());
-        assert_eq!(resolved, dir.path().join(DEFAULT_DB_FILE_NAME));
+    fn default_db_path_uses_aimem_db_name() {
+        let resolved = default_db_path();
+        assert_eq!(
+            resolved.file_name().and_then(|name| name.to_str()),
+            Some(DEFAULT_DB_FILE_NAME)
+        );
     }
 
     #[test]
-    fn default_db_path_falls_back_to_legacy_name_when_needed() {
-        let dir = tempfile::tempdir().expect("failed to create temp dir");
-        let legacy = dir.path().join(LEGACY_DB_FILE_NAME);
-        std::fs::write(&legacy, b"").expect("failed to create legacy db");
-
-        let resolved = resolve_default_db_path(dir.path());
-        assert_eq!(resolved, legacy);
-    }
-
-    #[test]
-    fn db_override_uses_requested_file_name_for_directory_inputs() {
+    fn db_override_uses_aimem_db_for_directory_inputs() {
         let dir = tempfile::tempdir().expect("failed to create temp dir");
         let raw = dir.path().to_string_lossy();
 
         assert_eq!(
-            resolve_db_override(&raw, DEFAULT_DB_FILE_NAME),
+            resolve_db_override(&raw),
             dir.path().join(DEFAULT_DB_FILE_NAME)
-        );
-        assert_eq!(
-            resolve_db_override(&raw, LEGACY_DB_FILE_NAME),
-            dir.path().join(LEGACY_DB_FILE_NAME)
         );
     }
 }
