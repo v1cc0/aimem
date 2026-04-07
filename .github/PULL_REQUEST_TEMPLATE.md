@@ -3,6 +3,6 @@
 ## How to test
 
 ## Checklist
-- [ ] Tests pass (`python -m pytest tests/ -v`)
+- [ ] Tests pass (`cargo test`)
 - [ ] No hardcoded paths
-- [ ] Linter passes (`ruff check .`)
+- [ ] Formatting passes (`cargo fmt --check`)

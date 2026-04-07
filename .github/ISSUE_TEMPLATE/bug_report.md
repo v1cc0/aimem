@@ -16,5 +16,5 @@ labels: bug
 
 **Environment:**
 - OS:
-- Python version:
-- MemPal version: (check `python mempal.py --version` or git SHA)
+- Rust version: (check `rustc --version`)
+- AiMem version / crate version / git SHA:
