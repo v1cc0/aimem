@@ -1,5 +1,6 @@
 # AiMem
 
+[![Rust CI](https://github.com/v1cc0/aimem/actions/workflows/rust.yml/badge.svg)](https://github.com/v1cc0/aimem/actions/workflows/rust.yml)
 [![crates.io: aimem-core](https://img.shields.io/crates/v/aimem-core)](https://crates.io/crates/aimem-core)
 [![crates.io: aimem-cli](https://img.shields.io/crates/v/aimem-cli)](https://crates.io/crates/aimem-cli)
 [![crates.io: aimem-mcp](https://img.shields.io/crates/v/aimem-mcp)](https://crates.io/crates/aimem-mcp)
@@ -33,6 +34,30 @@ crates/
 - MCP integration for agent tooling
 - no Python runtime in this repository
 
+## Architecture
+
+```text
+project files / chat exports
+           │
+           ▼
+    aimem CLI / MCP tools
+           │
+           ▼
+        aimem-core
+   ┌────────┼────────┐
+   │        │        │
+   ▼        ▼        ▼
+ mining   search   memory layers
+   │        │        │
+   └────────┴────────┘
+           │
+           ▼
+   ~/.aimem/aimem.db
+     (single Turso DB)
+```
+
+The shape is intentionally simple: one local DB file, thin CLI/MCP frontends, and reusable logic in `aimem-core`.
+
 ## Build
 
 ```bash
@@ -65,6 +90,67 @@ Library:
 ```toml
 [dependencies]
 aimem-core = "0.1.0"
+```
+
+## Quick start
+
+Create a tiny project config:
+
+```yaml
+# aimem.yaml
+wing: demo_app
+rooms:
+  - name: backend
+    description: backend code and docs
+    keywords: [router, handler, database, rust]
+  - name: decisions
+    description: architecture and tradeoffs
+    keywords: [decided, chose, tradeoff, because]
+```
+
+Mine a project into local memory:
+
+```bash
+aimem mine /path/to/project --no-embed
+```
+
+Query what was stored:
+
+```bash
+aimem status
+aimem search "why did we choose Turso?"
+aimem wake-up
+```
+
+Minimal Rust embedding:
+
+```rust
+use aimem_core::{Drawer, PalaceDb, Searcher};
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let db = PalaceDb::open("./aimem.db").await?;
+
+    let drawer = Drawer {
+        id: "drawer_demo_001".into(),
+        wing: "demo_app".into(),
+        room: "backend".into(),
+        content: "We chose Turso so storage and retrieval stay local.".into(),
+        source_file: Some("DECISIONS.md".into()),
+        chunk_index: 0,
+        added_by: "example".into(),
+        filed_at: chrono::Utc::now().to_rfc3339(),
+    };
+
+    db.insert_drawer(&drawer, None).await?;
+
+    let hits = Searcher::keyword_only(db)
+        .keyword_search("Turso", Some("demo_app"), None, 5)
+        .await?;
+
+    println!("hits = {}", hits.len());
+    Ok(())
+}
 ```
 
 ## CLI
