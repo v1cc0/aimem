@@ -4,17 +4,14 @@ use aimem_core::prelude::*;
 async fn main() -> anyhow::Result<()> {
     let db = AimemDb::open("./aimem-example.db").await?;
 
-    let drawer = Drawer {
-        id: "drawer_example_basic_001".into(),
-        wing: "demo_app".into(),
-        room: "general".into(),
-        content: "AiMem stores text memories in Turso.".into(),
-        parts: vec![],
-        source_file: Some("README.md".into()),
-        chunk_index: 0,
-        added_by: "example".into(),
-        filed_at: chrono::Utc::now().to_rfc3339(),
-    };
+    let drawer = Drawer::new(
+        "drawer_example_basic_001",
+        "demo_app",
+        "general",
+        "AiMem stores text memories in Turso.",
+        "example",
+    )
+    .with_source_file("README.md");
 
     db.insert_drawer(&drawer, None).await?;
 

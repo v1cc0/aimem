@@ -260,17 +260,16 @@ impl Miner {
             let mut file_drawers = 0usize;
             for (i, (chunk, embedding)) in chunks.iter().zip(embeddings.iter()).enumerate() {
                 let id = drawer_id(&wing, &room, &source, i);
-                let drawer = Drawer {
+                let drawer = Drawer::new(
                     id,
-                    wing: wing.clone(),
-                    room: room.clone(),
-                    content: chunk.clone(),
-                    parts: vec![],
-                    source_file: Some(source.clone()),
-                    chunk_index: i as i64,
-                    added_by: agent.to_string(),
-                    filed_at: now.clone(),
-                };
+                    wing.clone(),
+                    room.clone(),
+                    chunk.clone(),
+                    agent.to_string(),
+                )
+                .with_source_file(source.clone())
+                .with_chunk_index(i as i64)
+                .with_filed_at(now.clone());
                 let inserted = if let (Some(embedding), Some(embedder)) =
                     (embedding.as_deref(), self.embedder.as_ref())
                 {

@@ -155,17 +155,16 @@ impl ConvoMiner {
                     let digest = md5::compute(input.as_bytes());
                     format!("drawer_{wing}_{room}_{digest:x}")
                 };
-                let drawer = Drawer {
+                let drawer = Drawer::new(
                     id,
-                    wing: wing.to_string(),
-                    room: room.to_string(),
-                    content: chunk.clone(),
-                    parts: vec![],
-                    source_file: Some(source.clone()),
-                    chunk_index: i as i64,
-                    added_by: agent.to_string(),
-                    filed_at: now.clone(),
-                };
+                    wing.to_string(),
+                    room.to_string(),
+                    chunk.clone(),
+                    agent.to_string(),
+                )
+                .with_source_file(source.clone())
+                .with_chunk_index(i as i64)
+                .with_filed_at(now.clone());
                 let inserted = if let (Some(embedding), Some(embedder)) =
                     (embedding.as_deref(), self.embedder.as_ref())
                 {

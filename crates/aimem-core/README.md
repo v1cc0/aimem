@@ -83,16 +83,13 @@ use aimem_core::prelude::*;
 async fn main() -> anyhow::Result<()> {
     let db = AimemDb::memory().await?;
 
-    let drawer = Drawer {
-        id: "drawer_demo_001".into(),
-        wing: "demo_app".into(),
-        room: "decisions".into(),
-        content: "We chose Rust and Turso for the memory layer.".into(),
-        source_file: Some("DECISIONS.md".into()),
-        chunk_index: 0,
-        added_by: "example".into(),
-        filed_at: chrono::Utc::now().to_rfc3339(),
-    };
+    let drawer = Drawer::new(
+        "drawer_demo_001",
+        "demo_app",
+        "decisions",
+        "We chose Rust and Turso for the memory layer.",
+        "example",
+    ).with_source_file("DECISIONS.md");
 
     db.insert_drawer(&drawer, None).await?;
     Ok(())
@@ -109,16 +106,13 @@ use aimem_core::prelude::*;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let db = AimemDb::memory().await?;
-    let drawer = Drawer {
-        id: "drawer_demo_001".into(),
-        wing: "demo_app".into(),
-        room: "backend".into(),
-        content: "The backend uses Turso and Rust.".into(),
-        source_file: None,
-        chunk_index: 0,
-        added_by: "example".into(),
-        filed_at: chrono::Utc::now().to_rfc3339(),
-    };
+    let drawer = Drawer::new(
+        "drawer_demo_001",
+        "demo_app",
+        "backend",
+        "The backend uses Turso and Rust.",
+        "example",
+    );
     db.insert_drawer(&drawer, None).await?;
 
     let searcher = Searcher::keyword_only(db);
@@ -144,17 +138,7 @@ async fn main() -> anyhow::Result<()> {
     let content = "We moved the memory backend to Turso for local vector search.";
     let embedding = embedder.embed_one(content).await?;
 
-    let drawer = Drawer {
-        id: "drawer_demo_001".into(),
-        wing: "demo_app".into(),
-        room: "backend".into(),
-        content: content.into(),
-        parts: vec![],
-        source_file: None,
-        chunk_index: 0,
-        added_by: "example".into(),
-        filed_at: chrono::Utc::now().to_rfc3339(),
-    };
+    let drawer = Drawer::new("drawer_demo_001", "demo_app", "backend", content, "example");
     db.insert_drawer_with_profile(
         &drawer,
         Some(&embedding),

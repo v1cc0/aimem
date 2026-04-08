@@ -286,17 +286,9 @@ impl MemoryStack {
         let digest = md5::compute(format!("{wing}{room}{content}{now}").as_bytes());
         let id = format!("mem_{wing}_{digest:x}");
 
-        let drawer = Drawer {
-            id: id.clone(),
-            wing: wing.to_string(),
-            room: room.to_string(),
-            content,
-            parts,
-            source_file: None,
-            chunk_index: 0,
-            added_by: agent.to_string(),
-            filed_at: now,
-        };
+        let drawer = Drawer::new(id.clone(), wing, room, content, agent)
+            .with_parts(parts)
+            .with_filed_at(now);
 
         if let (Some(embedding), Some(embedder)) = (embedding.as_deref(), self.searcher.embedder())
         {
@@ -312,6 +304,18 @@ impl MemoryStack {
             self.db.insert_drawer(&drawer, embedding.as_deref()).await?;
         }
         Ok(id)
+    }
+
+    /// File a plain-text memory without manually constructing a parts vector.
+    pub async fn file_text(
+        &self,
+        wing: &str,
+        room: &str,
+        content: impl Into<String>,
+        agent: &str,
+    ) -> Result<String, LayerError> {
+        self.file_drawer(wing, room, content.into(), Vec::new(), agent)
+            .await
     }
 
     /// Access the underlying searcher.

@@ -26,17 +26,14 @@
 //! // In-memory DB — perfect for tests
 //! let db = AimemDb::memory().await?;
 //!
-//! let drawer = Drawer {
-//!     id: "d_001".into(),
-//!     wing: "my_project".into(),
-//!     room: "decisions".into(),
-//!     content: "We chose Turso for native vector support.".into(),
-//!     parts: vec![],
-//!     source_file: None,
-//!     chunk_index: 0,
-//!     added_by: "claude".into(),
-//!     filed_at: Utc::now().to_rfc3339(),
-//! };
+//! let drawer = Drawer::new(
+//!     "d_001",
+//!     "my_project",
+//!     "decisions",
+//!     "We chose Turso for native vector support.",
+//!     "claude",
+//! )
+//! .with_filed_at(Utc::now().to_rfc3339());
 //!
 //! let inserted = db.insert_drawer(&drawer, None).await?;
 //! assert!(inserted);

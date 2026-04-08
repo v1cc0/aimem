@@ -4,17 +4,14 @@ use aimem_core::{AimemDb, Drawer, Searcher, layers::l1_generate};
 use anyhow::Result;
 
 fn make_drawer(i: usize, room: &str, content: String) -> Drawer {
-    Drawer {
-        id: format!("drawer_perf_{room}_{i}"),
-        wing: "perf_wing".into(),
-        room: room.into(),
+    Drawer::new(
+        format!("drawer_perf_{room}_{i}"),
+        "perf_wing",
+        room.to_string(),
         content,
-        parts: vec![],
-        source_file: Some(format!("file_{i}.md")),
-        chunk_index: 0,
-        added_by: "perf-test".into(),
-        filed_at: chrono::Utc::now().to_rfc3339(),
-    }
+        "perf-test",
+    )
+    .with_source_file(format!("file_{i}.md"))
 }
 
 #[tokio::test]

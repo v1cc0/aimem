@@ -69,6 +69,61 @@ pub struct Drawer {
     pub filed_at: String,
 }
 
+impl Drawer {
+    /// Construct a text-first drawer with sensible defaults.
+    pub fn new(
+        id: impl Into<String>,
+        wing: impl Into<String>,
+        room: impl Into<String>,
+        content: impl Into<String>,
+        added_by: impl Into<String>,
+    ) -> Self {
+        Self {
+            id: id.into(),
+            wing: wing.into(),
+            room: room.into(),
+            content: content.into(),
+            parts: Vec::new(),
+            source_file: None,
+            chunk_index: 0,
+            added_by: added_by.into(),
+            filed_at: chrono::Utc::now().to_rfc3339(),
+        }
+    }
+
+    /// Construct a multimodal drawer with explicit parts.
+    pub fn multimodal(
+        id: impl Into<String>,
+        wing: impl Into<String>,
+        room: impl Into<String>,
+        content: impl Into<String>,
+        parts: Vec<ContentPart>,
+        added_by: impl Into<String>,
+    ) -> Self {
+        Self::new(id, wing, room, content, added_by).with_parts(parts)
+    }
+
+    pub fn with_parts(mut self, parts: Vec<ContentPart>) -> Self {
+        self.parts = parts;
+        self
+    }
+
+    pub fn with_source_file(mut self, source_file: impl Into<String>) -> Self {
+        self.source_file = Some(source_file.into());
+        self
+    }
+
+    pub fn with_chunk_index(mut self, chunk_index: i64) -> Self {
+        self.chunk_index = chunk_index;
+        self
+    }
+
+    pub fn with_filed_at(mut self, filed_at: impl Into<String>) -> Self {
+        self.filed_at = filed_at.into();
+        self
+    }
+}
+
 /// Lightweight metadata-only view of a drawer (no content).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DrawerMeta {

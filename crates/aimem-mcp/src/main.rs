@@ -248,17 +248,17 @@ impl ServerState {
         };
 
         let filed_at = Utc::now().to_rfc3339();
-        let drawer = Drawer {
-            id: drawer_id(wing, room, content, source_file, &filed_at),
-            wing: wing.to_string(),
-            room: room.to_string(),
-            content: content.to_string(),
-            parts: vec![],
-            source_file: source_file.map(str::to_string),
-            chunk_index: 0,
-            added_by: added_by.unwrap_or("mcp").to_string(),
-            filed_at,
-        };
+        let mut drawer = Drawer::new(
+            drawer_id(wing, room, content, source_file, &filed_at),
+            wing,
+            room,
+            content,
+            added_by.unwrap_or("mcp"),
+        )
+        .with_filed_at(filed_at);
+        if let Some(source_file) = source_file {
+            drawer = drawer.with_source_file(source_file);
+        }
 
         let inserted = if let (Some(embedding), Some((provider, model))) =
             (embedding.as_deref(), embedding_profile.as_ref())
@@ -812,17 +812,15 @@ mod tests {
     }
 
     async fn seed_drawer(state: &ServerState) -> String {
-        let drawer = Drawer {
-            id: "drawer_mcp_test_001".into(),
-            wing: "demo_app".into(),
-            room: "backend".into(),
-            content: "Turso keeps AiMem local and searchable.".into(),
-            parts: vec![],
-            source_file: Some("README.md".into()),
-            chunk_index: 0,
-            added_by: "test".into(),
-            filed_at: "2026-04-07T00:00:00Z".into(),
-        };
+        let drawer = Drawer::new(
+            "drawer_mcp_test_001",
+            "demo_app",
+            "backend",
+            "Turso keeps AiMem local and searchable.",
+            "test",
+        )
+        .with_source_file("README.md")
+        .with_filed_at("2026-04-07T00:00:00Z");
         let id = drawer.id.clone();
         state
             .db
