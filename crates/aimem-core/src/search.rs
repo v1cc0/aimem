@@ -65,13 +65,14 @@ impl Searcher {
         room: Option<&str>,
         limit: usize,
     ) -> Result<Vec<SearchResult>, SearchError> {
-        let qvec = self
+        let embedder = self
             .embedder
             .as_ref()
-            .ok_or(SearchError::EmbedderUnavailable)?
-            .embed_one(query)
+            .ok_or(SearchError::EmbedderUnavailable)?;
+        let qvec = embedder.embed_one(query).await?;
+        self.db
+            .assert_embedding_profile(qvec.len(), embedder.provider_name(), embedder.model_name())
             .await?;
-        self.db.assert_embedding_dimension(qvec.len()).await?;
         let qvec_json = crate::embedder::to_vector32_json(&qvec);
 
         let conn = self.db.conn()?;

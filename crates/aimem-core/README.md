@@ -130,30 +130,37 @@ async fn main() -> anyhow::Result<()> {
 
 ### 4. 做语义搜索（需要 embedding 模型）
 
-第一次 `Embedder::new()` 会下载 `all-MiniLM-L6-v2` 模型缓存。
+第一次 `LocalEmbedder::new()` 会下载 `all-MiniLM-L6-v2` 模型缓存。
 
 ```rust,no_run
+use std::sync::Arc;
 use aimem_core::prelude::*;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let db = AimemDb::memory().await?;
-    let embedder = Embedder::new()?;
+    let embedder = Arc::new(LocalEmbedder::new()?);
 
     let content = "We moved the memory backend to Turso for local vector search.";
-    let embedding = embedder.embed_one(content)?;
+    let embedding = embedder.embed_one(content).await?;
 
     let drawer = Drawer {
         id: "drawer_demo_001".into(),
         wing: "demo_app".into(),
         room: "backend".into(),
         content: content.into(),
+        parts: vec![],
         source_file: None,
         chunk_index: 0,
         added_by: "example".into(),
         filed_at: chrono::Utc::now().to_rfc3339(),
     };
-    db.insert_drawer(&drawer, Some(&embedding)).await?;
+    db.insert_drawer_with_profile(
+        &drawer,
+        Some(&embedding),
+        embedder.provider_name(),
+        embedder.model_name(),
+    ).await?;
 
     let searcher = Searcher::new(db, embedder);
     let hits = searcher.vector_search("local vector database", Some("demo_app"), None, 5).await?;
@@ -217,13 +224,14 @@ async fn main() -> anyhow::Result<()> {
 ### 7. 生成 wake-up context
 
 ```rust,no_run
+use std::sync::Arc;
 use aimem_core::prelude::*;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let cfg = Config::load()?;
     let db = AimemDb::open(&cfg.db_path).await?;
-    let embedder = Embedder::new()?;
+    let embedder = Arc::new(LocalEmbedder::new()?);
     let stack = MemoryStack::new(db, embedder, &cfg);
 
     let wakeup = stack.wake_up(None).await?;

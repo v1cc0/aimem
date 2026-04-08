@@ -42,7 +42,7 @@ pub mod types;
 
 pub use config::Config;
 pub use convo::{ConvoMineStats, ConvoMiner};
-pub use db::AimemDb;
+pub use db::{AimemDb, EmbeddingStoreProfile};
 pub use embedder::{Embedder, Gemini2Embedder, LocalEmbedder};
 pub use graph::{AimemGraph, TraversalNode};
 pub use knowledge::KnowledgeGraph;
@@ -55,7 +55,7 @@ pub use types::{ContentPart, Drawer, DrawerMeta, Entity, RoomNode, SearchResult,
 pub mod prelude {
     pub use crate::{
         AimemDb, AimemGraph, Config, ContentPart, ConvoMineStats, ConvoMiner, Drawer, DrawerMeta,
-        Embedder, Entity, Gemini2Embedder, KnowledgeGraph, LocalEmbedder, MemoryStack, Miner,
-        RoomNode, SearchResult, Searcher, Triple, Tunnel,
+        Embedder, EmbeddingStoreProfile, Entity, Gemini2Embedder, KnowledgeGraph, LocalEmbedder,
+        MemoryStack, Miner, RoomNode, SearchResult, Searcher, Triple, Tunnel,
     };
 }

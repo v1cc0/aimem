@@ -12,6 +12,11 @@ use tracing::warn;
 
 use crate::types::ContentPart;
 
+pub const LOCAL_EMBED_PROVIDER: &str = "fastembed";
+pub const LOCAL_EMBED_MODEL: &str = "all-MiniLM-L6-v2";
+pub const GEMINI_EMBED_PROVIDER: &str = "gemini";
+pub const GEMINI_EMBED_MODEL: &str = "gemini-embedding-2-preview";
+
 #[derive(Debug, Error)]
 pub enum EmbedError {
     #[error("fastembed error: {0}")]
@@ -40,6 +45,12 @@ pub trait Embedder: Send + Sync {
 
     /// Dimension of the vectors produced by this embedder.
     fn dimension(&self) -> usize;
+
+    /// Provider identifier used for store compatibility checks.
+    fn provider_name(&self) -> &str;
+
+    /// Model identifier used for store compatibility checks.
+    fn model_name(&self) -> &str;
 }
 
 /// Local embedder using fastembed-rs.
@@ -52,7 +63,7 @@ pub struct LocalEmbedder {
 impl std::fmt::Debug for LocalEmbedder {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LocalEmbedder")
-            .field("model", &"AllMiniLML6V2")
+            .field("model", &LOCAL_EMBED_MODEL)
             .finish()
     }
 }
@@ -94,6 +105,14 @@ impl Embedder for LocalEmbedder {
     fn dimension(&self) -> usize {
         384
     }
+
+    fn provider_name(&self) -> &str {
+        LOCAL_EMBED_PROVIDER
+    }
+
+    fn model_name(&self) -> &str {
+        LOCAL_EMBED_MODEL
+    }
 }
 
 /// Remote embedder using Google Gemini Embedding 2 API.
@@ -107,7 +126,7 @@ impl Gemini2Embedder {
     pub fn new(api_key: String) -> Self {
         Self {
             api_key,
-            model: "gemini-embedding-2-preview".to_string(),
+            model: GEMINI_EMBED_MODEL.to_string(),
             client: reqwest::Client::new(),
         }
     }
@@ -242,6 +261,14 @@ impl Embedder for Gemini2Embedder {
 
     fn dimension(&self) -> usize {
         768
+    }
+
+    fn provider_name(&self) -> &str {
+        GEMINI_EMBED_PROVIDER
+    }
+
+    fn model_name(&self) -> &str {
+        &self.model
     }
 }
 

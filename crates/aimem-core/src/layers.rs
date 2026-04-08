@@ -298,7 +298,19 @@ impl MemoryStack {
             filed_at: now,
         };
 
-        self.db.insert_drawer(&drawer, embedding.as_deref()).await?;
+        if let (Some(embedding), Some(embedder)) = (embedding.as_deref(), self.searcher.embedder())
+        {
+            self.db
+                .insert_drawer_with_profile(
+                    &drawer,
+                    Some(embedding),
+                    embedder.provider_name(),
+                    embedder.model_name(),
+                )
+                .await?;
+        } else {
+            self.db.insert_drawer(&drawer, embedding.as_deref()).await?;
+        }
         Ok(id)
     }
 

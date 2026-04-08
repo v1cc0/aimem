@@ -23,7 +23,13 @@ async fn main() -> anyhow::Result<()> {
         filed_at: chrono::Utc::now().to_rfc3339(),
     };
 
-    db.insert_drawer(&drawer, Some(&embedding)).await?;
+    db.insert_drawer_with_profile(
+        &drawer,
+        Some(&embedding),
+        embedder.provider_name(),
+        embedder.model_name(),
+    )
+    .await?;
 
     let searcher = Searcher::new(db, embedder);
     let hits = searcher

@@ -227,12 +227,18 @@ impl ServerState {
             }));
         }
 
-        let (embedding, embedding_error) = match self.ensure_embedder().await {
-            Ok(embedder) => match embedder.embed_one(content).await {
-                Ok(embedding) => (Some(embedding), None::<String>),
-                Err(err) => (None, Some(err.to_string())),
-            },
-            Err(err) => (None, Some(err.to_string())),
+        let (embedding, embedding_error, embedding_profile) = match self.ensure_embedder().await {
+            Ok(embedder) => {
+                let profile = Some((
+                    embedder.provider_name().to_string(),
+                    embedder.model_name().to_string(),
+                ));
+                match embedder.embed_one(content).await {
+                    Ok(embedding) => (Some(embedding), None::<String>, profile),
+                    Err(err) => (None, Some(err.to_string()), profile),
+                }
+            }
+            Err(err) => (None, Some(err.to_string()), None),
         };
 
         let filed_at = Utc::now().to_rfc3339();
@@ -248,7 +254,15 @@ impl ServerState {
             filed_at,
         };
 
-        let inserted = self.db.insert_drawer(&drawer, embedding.as_deref()).await?;
+        let inserted = if let (Some(embedding), Some((provider, model))) =
+            (embedding.as_deref(), embedding_profile.as_ref())
+        {
+            self.db
+                .insert_drawer_with_profile(&drawer, Some(embedding), provider, model)
+                .await?
+        } else {
+            self.db.insert_drawer(&drawer, embedding.as_deref()).await?
+        };
 
         Ok(json!({
             "added": inserted,

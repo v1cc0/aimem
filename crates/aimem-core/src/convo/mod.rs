@@ -166,7 +166,21 @@ impl ConvoMiner {
                     added_by: agent.to_string(),
                     filed_at: now.clone(),
                 };
-                if self.db.insert_drawer(&drawer, embedding.as_deref()).await? {
+                let inserted = if let (Some(embedding), Some(embedder)) =
+                    (embedding.as_deref(), self.embedder.as_ref())
+                {
+                    self.db
+                        .insert_drawer_with_profile(
+                            &drawer,
+                            Some(embedding),
+                            embedder.provider_name(),
+                            embedder.model_name(),
+                        )
+                        .await?
+                } else {
+                    self.db.insert_drawer(&drawer, embedding.as_deref()).await?
+                };
+                if inserted {
                     stats.drawers_added += 1;
                 }
             }

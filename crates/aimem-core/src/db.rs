@@ -50,6 +50,9 @@ use std::path::Path;
 use thiserror::Error;
 use turso::{Builder, Connection, Database};
 
+use crate::embedder::{
+    GEMINI_EMBED_MODEL, GEMINI_EMBED_PROVIDER, LOCAL_EMBED_MODEL, LOCAL_EMBED_PROVIDER,
+};
 use crate::types::{Drawer, Entity, Triple};
 
 #[derive(Debug, Error)]
@@ -64,9 +67,25 @@ pub enum DbError {
     Serde(#[from] serde_json::Error),
     #[error("Embedding dimension mismatch: store uses {expected}, attempted {actual}")]
     EmbeddingDimensionMismatch { expected: usize, actual: usize },
+    #[error(
+        "Embedding model mismatch: store uses {expected_provider}/{expected_model}, attempted {actual_provider}/{actual_model}"
+    )]
+    EmbeddingModelMismatch {
+        expected_provider: String,
+        expected_model: String,
+        actual_provider: String,
+        actual_model: String,
+    },
 }
 
 pub type DbResult<T> = Result<T, DbError>;
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct EmbeddingStoreProfile {
+    pub provider: Option<String>,
+    pub model: Option<String>,
+    pub dimension: Option<usize>,
+}
 
 /// SQL to initialize all tables.
 const INIT_SQL: &str = "
@@ -185,24 +204,46 @@ impl AimemDb {
         Ok(())
     }
 
+    async fn meta_value(&self, key: &str) -> DbResult<Option<String>> {
+        let conn = self.conn()?;
+        let mut rows = conn
+            .query("SELECT value FROM aimem_meta WHERE key = ?1 LIMIT 1", [key])
+            .await?;
+        let Some(row) = rows.next().await? else {
+            return Ok(None);
+        };
+        Ok(Some(val_to_string(&row, 0)?))
+    }
+
+    async fn set_meta_value(&self, key: &str, value: &str) -> DbResult<()> {
+        let conn = self.conn()?;
+        conn.execute(
+            "INSERT OR REPLACE INTO aimem_meta (key, value) VALUES (?1, ?2)",
+            [key, value],
+        )
+        .await?;
+        Ok(())
+    }
+
+    fn infer_profile_from_dimension(dim: usize) -> Option<(&'static str, &'static str)> {
+        match dim {
+            384 => Some((LOCAL_EMBED_PROVIDER, LOCAL_EMBED_MODEL)),
+            768 => Some((GEMINI_EMBED_PROVIDER, GEMINI_EMBED_MODEL)),
+            _ => None,
+        }
+    }
+
     /// Return the configured embedding dimension, inferring it from existing
     /// stored vectors when upgrading older databases that predate metadata.
     pub async fn embedding_dimension(&self) -> DbResult<Option<usize>> {
-        let conn = self.conn()?;
-
-        let mut meta_rows = conn
-            .query(
-                "SELECT value FROM aimem_meta WHERE key = 'embedding_dim' LIMIT 1",
-                (),
-            )
-            .await?;
-        if let Some(row) = meta_rows.next().await? {
-            let raw = val_to_string(&row, 0)?;
+        if let Some(raw) = self.meta_value("embedding_dim").await? {
             let dim = raw.parse::<usize>().map_err(|err| {
                 DbError::Conversion(format!("invalid embedding_dim metadata {raw:?}: {err}"))
             })?;
             return Ok(Some(dim));
         }
+
+        let conn = self.conn()?;
 
         let mut rows = conn
             .query(
@@ -224,12 +265,38 @@ impl AimemDb {
         }
 
         let dim = (bytes / 4) as usize;
-        conn.execute(
-            "INSERT OR REPLACE INTO aimem_meta (key, value) VALUES ('embedding_dim', ?1)",
-            [dim.to_string()],
-        )
-        .await?;
+        self.set_meta_value("embedding_dim", &dim.to_string())
+            .await?;
         Ok(Some(dim))
+    }
+
+    pub async fn embedding_profile(&self) -> DbResult<EmbeddingStoreProfile> {
+        let dimension = self.embedding_dimension().await?;
+        let mut provider = self.meta_value("embedding_provider").await?;
+        let mut model = self.meta_value("embedding_model").await?;
+
+        if let Some(dim) = dimension {
+            if let Some((inferred_provider, inferred_model)) =
+                Self::infer_profile_from_dimension(dim)
+            {
+                if provider.is_none() {
+                    self.set_meta_value("embedding_provider", inferred_provider)
+                        .await?;
+                    provider = Some(inferred_provider.to_string());
+                }
+                if model.is_none() {
+                    self.set_meta_value("embedding_model", inferred_model)
+                        .await?;
+                    model = Some(inferred_model.to_string());
+                }
+            }
+        }
+
+        Ok(EmbeddingStoreProfile {
+            provider,
+            model,
+            dimension,
+        })
     }
 
     /// Validate that a query vector matches the store dimension when known.
@@ -242,6 +309,36 @@ impl AimemDb {
                 });
             }
         }
+        Ok(())
+    }
+
+    pub async fn assert_embedding_profile(
+        &self,
+        dim: usize,
+        provider: &str,
+        model: &str,
+    ) -> DbResult<()> {
+        let profile = self.embedding_profile().await?;
+        if let Some(expected) = profile.dimension {
+            if expected != dim {
+                return Err(DbError::EmbeddingDimensionMismatch {
+                    expected,
+                    actual: dim,
+                });
+            }
+        }
+
+        if let (Some(expected_provider), Some(expected_model)) = (profile.provider, profile.model) {
+            if expected_provider != provider || expected_model != model {
+                return Err(DbError::EmbeddingModelMismatch {
+                    expected_provider,
+                    expected_model,
+                    actual_provider: provider.to_string(),
+                    actual_model: model.to_string(),
+                });
+            }
+        }
+
         Ok(())
     }
 
@@ -266,6 +363,42 @@ impl AimemDb {
         Ok(())
     }
 
+    async fn ensure_embedding_profile_for_write(
+        &self,
+        dim: usize,
+        provider: &str,
+        model: &str,
+    ) -> DbResult<()> {
+        let profile = self.embedding_profile().await?;
+        if let Some(expected) = profile.dimension {
+            if expected != dim {
+                return Err(DbError::EmbeddingDimensionMismatch {
+                    expected,
+                    actual: dim,
+                });
+            }
+        }
+
+        if let (Some(expected_provider), Some(expected_model)) =
+            (profile.provider.clone(), profile.model.clone())
+        {
+            if expected_provider != provider || expected_model != model {
+                return Err(DbError::EmbeddingModelMismatch {
+                    expected_provider,
+                    expected_model,
+                    actual_provider: provider.to_string(),
+                    actual_model: model.to_string(),
+                });
+            }
+        }
+
+        self.set_meta_value("embedding_dim", &dim.to_string())
+            .await?;
+        self.set_meta_value("embedding_provider", provider).await?;
+        self.set_meta_value("embedding_model", model).await?;
+        Ok(())
+    }
+
     // ──────────────────────────────────────────────────────────────────────
     // Drawer operations
     // ──────────────────────────────────────────────────────────────────────
@@ -276,11 +409,40 @@ impl AimemDb {
         drawer: &Drawer,
         embedding: Option<&[f32]>,
     ) -> DbResult<bool> {
-        let conn = self.conn()?;
-
         if let Some(v) = embedding {
-            self.ensure_embedding_dimension_for_write(v.len()).await?;
+            if let Some((provider, model)) = Self::infer_profile_from_dimension(v.len()) {
+                self.ensure_embedding_profile_for_write(v.len(), provider, model)
+                    .await?;
+            } else {
+                self.ensure_embedding_dimension_for_write(v.len()).await?;
+            }
         }
+
+        self.insert_drawer_inner(drawer, embedding).await
+    }
+
+    /// Insert a drawer and validate the embedding profile against store metadata.
+    pub async fn insert_drawer_with_profile(
+        &self,
+        drawer: &Drawer,
+        embedding: Option<&[f32]>,
+        provider: &str,
+        model: &str,
+    ) -> DbResult<bool> {
+        if let Some(v) = embedding {
+            self.ensure_embedding_profile_for_write(v.len(), provider, model)
+                .await?;
+        }
+
+        self.insert_drawer_inner(drawer, embedding).await
+    }
+
+    async fn insert_drawer_inner(
+        &self,
+        drawer: &Drawer,
+        embedding: Option<&[f32]>,
+    ) -> DbResult<bool> {
+        let conn = self.conn()?;
 
         // Serialize embedding as JSON array for vector32()
         let emb_json: Option<String> = embedding.map(|v| {

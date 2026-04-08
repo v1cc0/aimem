@@ -1,4 +1,7 @@
 use aimem_core::db::DbError;
+use aimem_core::embedder::{
+    GEMINI_EMBED_MODEL, GEMINI_EMBED_PROVIDER, LOCAL_EMBED_MODEL, LOCAL_EMBED_PROVIDER,
+};
 use aimem_core::{AimemDb, ContentPart, Drawer, Embedder, LocalEmbedder, Searcher};
 use anyhow::Result;
 use std::sync::Arc;
@@ -102,7 +105,13 @@ async fn searcher_works_with_multimodal_drawers() -> Result<()> {
         filed_at: "2026-04-09T12:00:00Z".into(),
     };
 
-    db.insert_drawer(&drawer, Some(&embedding)).await?;
+    db.insert_drawer_with_profile(
+        &drawer,
+        Some(&embedding),
+        embedder.provider_name(),
+        embedder.model_name(),
+    )
+    .await?;
 
     // Search
     let results = searcher
@@ -167,6 +176,44 @@ async fn embedding_dimension_guard_rejects_mixed_vector_sizes() -> Result<()> {
             actual: 768
         }
     ));
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn embedding_profile_tracks_provider_and_model() -> Result<()> {
+    let db = AimemDb::memory().await?;
+
+    let drawer = Drawer {
+        id: "d_profile_001".into(),
+        wing: "demo".into(),
+        room: "guard".into(),
+        content: "profile guard".into(),
+        parts: vec![],
+        source_file: None,
+        chunk_index: 0,
+        added_by: "tester".into(),
+        filed_at: "2026-04-09T12:00:03Z".into(),
+    };
+
+    db.insert_drawer_with_profile(
+        &drawer,
+        Some(&vec![0.0; 384]),
+        LOCAL_EMBED_PROVIDER,
+        LOCAL_EMBED_MODEL,
+    )
+    .await?;
+
+    let profile = db.embedding_profile().await?;
+    assert_eq!(profile.provider.as_deref(), Some(LOCAL_EMBED_PROVIDER));
+    assert_eq!(profile.model.as_deref(), Some(LOCAL_EMBED_MODEL));
+    assert_eq!(profile.dimension, Some(384));
+
+    let err = db
+        .assert_embedding_profile(384, GEMINI_EMBED_PROVIDER, GEMINI_EMBED_MODEL)
+        .await
+        .expect_err("model mismatch should be rejected");
+    assert!(matches!(err, DbError::EmbeddingModelMismatch { .. }));
 
     Ok(())
 }
