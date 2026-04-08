@@ -6,6 +6,9 @@
 //!  3. MILESTONES   — breakthroughs, things that finally worked
 //!  4. PROBLEMS     — what broke, root causes, fixes
 //!  5. EMOTIONAL    — feelings, relationships
+//!
+//! Includes a narrow multilingual rule set (EN / ZH / CAN / JP) while trying
+//! hard to avoid obvious false positives from overly broad keywords.
 
 use regex::Regex;
 use std::sync::OnceLock;
@@ -53,11 +56,13 @@ fn decision_patterns() -> &'static [Regex] {
             r"(?i)\bbetter (to|than|approach|option|choice)\b",
             r"(?i)\binstead of\b",
             r"(?i)\brather than\b",
-            r"(?i)\bthe reason (is|was|being)\b",
             r"(?i)\btrade-?off\b",
-            r"(?i)\barchitecture\b",
-            r"(?i)\bapproach\b",
-            r"(?i)\bstrategy\b",
+            r"决定",
+            r"选择了",
+            r"决定使用",
+            r"決めました",
+            r"選びました",
+            r"にしました",
         ])
     })
 }
@@ -72,9 +77,15 @@ fn preference_patterns() -> &'static [Regex] {
             r"(?i)\bdon'?t (ever |like to )?(use|do|mock|stub|import)\b",
             r"(?i)\bi like (to|when|how)\b",
             r"(?i)\bi hate (when|how|it when)\b",
-            r"(?i)\bmy preference\b",
-            r"(?i)\bi want\b",
             r"(?i)\bstop using\b",
+            r"我喜欢",
+            r"我中意",
+            r"我鍾意",
+            r"不喜欢",
+            r"唔钟意",
+            r"讨厌",
+            r"が好き",
+            r"が嫌い",
         ])
     })
 }
@@ -93,6 +104,10 @@ fn milestone_patterns() -> &'static [Regex] {
             r"(?i)\blaunched\b",
             r"(?i)\bsuccessfully\b",
             r"(?i)\bfixed it\b",
+            r"终于搞定了",
+            r"终于好了",
+            r"成功しました",
+            r"できました",
         ])
     })
 }
@@ -112,6 +127,12 @@ fn problem_patterns() -> &'static [Regex] {
             r"(?i)\bfix\b",
             r"(?i)\bworkaround\b",
             r"(?i)\bdebugging\b",
+            r"报错",
+            r"崩溃",
+            r"失败",
+            r"バグ",
+            r"エラー",
+            r"失敗",
         ])
     })
 }
@@ -126,11 +147,15 @@ fn emotional_patterns() -> &'static [Regex] {
             r"(?i)\bhappy\b",
             r"(?i)\bsad\b",
             r"(?i)\blove\b",
-            r"(?i)\bfeel\b",
             r"(?i)\bcry\b",
             r"(?i)\btears\b",
             r"(?i)\bvulnerable\b",
             r"(?i)\bgrateful\b",
+            r"开心",
+            r"难过",
+            r"嬉しい",
+            r"悲しい",
+            r"心配",
         ])
     })
 }
@@ -225,5 +250,48 @@ mod tests {
     fn test_classify_problem() {
         let t = "There was a bug in the embedding generation that caused crashes.";
         assert_eq!(classify(t), MemoryType::Problem);
+    }
+
+    #[test]
+    fn test_does_not_false_positive_on_generic_architecture_words() {
+        let t = "This architecture document lists several possible approaches for future work.";
+        assert_eq!(classify(t), MemoryType::General);
+    }
+
+    #[test]
+    fn test_does_not_false_positive_on_generic_i_am_statement() {
+        let t = "I am working on the backend service this week.";
+        assert_eq!(classify(t), MemoryType::General);
+    }
+
+    #[test]
+    fn test_does_not_false_positive_on_generic_i_want_statement() {
+        let t = "I want to understand the system before changing anything.";
+        assert_eq!(classify(t), MemoryType::General);
+    }
+
+    #[test]
+    fn test_classify_multilingual_preference() {
+        let t = "我喜欢寿司，也喜欢拉面。";
+        assert_eq!(classify(t), MemoryType::Preference);
+    }
+
+    #[test]
+    fn test_classify_multilingual_problem() {
+        let t = "服务启动时报错，然后直接崩溃。";
+        assert_eq!(classify(t), MemoryType::Problem);
+    }
+
+    #[test]
+    fn test_classify_multilingual_decision() {
+        let t = "我们决定使用 Rust 重写后端。";
+        assert_eq!(classify(t), MemoryType::Decision);
+    }
+
+    #[test]
+    fn test_extract_all_keeps_paragraph_chunking_for_short_fragments() {
+        let t = "我喜欢寿司。\n\n下雨了。";
+        let memories = extract_all(t);
+        assert_eq!(memories.len(), 0);
     }
 }
