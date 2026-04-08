@@ -1,8 +1,9 @@
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use aimem_core::{
-    AimemDb, Drawer, Embedder, Miner, SearchResult, Searcher,
+    AimemDb, Drawer, Embedder, Gemini2Embedder, LocalEmbedder, Miner, SearchResult, Searcher,
     config::Config,
     convo::ConvoMiner,
     layers::{l0_render, l1_generate},
@@ -87,6 +88,13 @@ struct MineArgs {
 
     #[arg(long, help = "Store text only without generating embeddings.")]
     no_embed: bool,
+
+    #[arg(
+        long,
+        env = "GEMINI_API_KEY",
+        help = "Use Gemini 2.0 remote embedding."
+    )]
+    gemini_key: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -102,6 +110,13 @@ struct SearchArgs {
 
     #[arg(long, default_value_t = 5)]
     results: usize,
+
+    #[arg(
+        long,
+        env = "GEMINI_API_KEY",
+        help = "Use Gemini 2.0 remote embedding."
+    )]
+    gemini_key: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -162,14 +177,24 @@ fn init_tracing(verbose: u8) -> Result<()> {
     Ok(())
 }
 
+fn load_embedder(gemini_key: Option<&str>) -> Result<Arc<dyn Embedder>> {
+    if let Some(key) = gemini_key {
+        tracing::info!("using Gemini 2.0 remote embedding");
+        Ok(Arc::new(Gemini2Embedder::new(key.to_string())))
+    } else {
+        tracing::info!("using local fastembed-rs model (all-MiniLM-L6-v2)");
+        Ok(Arc::new(LocalEmbedder::new().context(
+            "failed to load local embedding model; try setting GEMINI_API_KEY for remote embedding",
+        )?))
+    }
+}
+
 async fn cmd_mine(db_path: Option<&Path>, args: MineArgs) -> Result<()> {
     let runtime = load_runtime(db_path).await?;
     let embedder = if args.no_embed {
         None
     } else {
-        Some(Embedder::new().context(
-            "failed to load embedding model; rerun with --no-embed if you only want to file text",
-        )?)
+        Some(load_embedder(args.gemini_key.as_deref())?)
     };
 
     match args.mode {
@@ -233,7 +258,7 @@ async fn cmd_search(db_path: Option<&Path>, args: SearchArgs) -> Result<()> {
         .await
         .with_context(|| format!("keyword search failed for query {:?}", args.query))?;
 
-    match Embedder::new() {
+    match load_embedder(args.gemini_key.as_deref()) {
         Ok(embedder) => {
             let searcher = Searcher::new(runtime.db, embedder);
             let vector_results = searcher

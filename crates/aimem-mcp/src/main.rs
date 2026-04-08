@@ -1,12 +1,13 @@
 use std::collections::BTreeMap;
 use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
-use aimem_core::{AimemDb, Config, Drawer, Embedder, SearchResult, Searcher};
+use aimem_core::{AimemDb, Config, Drawer, Embedder, LocalEmbedder, SearchResult, Searcher};
 use anyhow::{Context, Result};
 use chrono::Utc;
 use serde_json::{Map, Value, json};
+use tokio::sync::Mutex;
 use tracing_subscriber::EnvFilter;
 
 const AIMEM_PROTOCOL: &str = "IMPORTANT — AiMem Memory Protocol:\n1. ON WAKE-UP: Call aimem_status to load the AiMem overview + AAAK spec.\n2. BEFORE RESPONDING about any person, project, or past event: call aimem_search FIRST. Never guess — verify.\n3. IF UNSURE about a fact: say 'let me check' and query AiMem. Wrong is worse than slow.\n4. STORAGE is not memory; storage + retrieval protocol is memory.";
@@ -17,7 +18,7 @@ const AAAK_SPEC: &str = "AAAK is AiMem's compressed memory dialect.\n- ENTITIES:
 struct ServerState {
     cfg: Config,
     db: AimemDb,
-    embedder: Arc<Mutex<Option<Embedder>>>,
+    embedder: Arc<Mutex<Option<Arc<dyn Embedder>>>>,
     embedder_loading_enabled: bool,
 }
 
@@ -98,19 +99,7 @@ impl ServerState {
             .keyword_fallback_search(query, wing, room, limit)
             .await?;
 
-        if !keyword_results.is_empty() {
-            return Ok(search_payload(
-                query,
-                limit,
-                wing,
-                room,
-                "keyword",
-                Vec::new(),
-                keyword_results,
-            ));
-        }
-
-        match self.ensure_embedder() {
+        match self.ensure_embedder().await {
             Ok(embedder) => {
                 let searcher = Searcher::new(self.db.clone(), embedder);
                 let semantic_results = searcher.vector_search(query, wing, room, limit).await?;
@@ -124,6 +113,16 @@ impl ServerState {
                         "semantic",
                         semantic_results,
                         Vec::new(),
+                    ))
+                } else if !keyword_results.is_empty() {
+                    Ok(search_payload(
+                        query,
+                        limit,
+                        wing,
+                        room,
+                        "keyword",
+                        Vec::new(),
+                        keyword_results,
                     ))
                 } else {
                     Ok(search_payload(
@@ -183,7 +182,7 @@ impl ServerState {
             }));
         }
 
-        let semantic_matches = match self.ensure_embedder() {
+        let semantic_matches = match self.ensure_embedder().await {
             Ok(embedder) => {
                 let searcher = Searcher::new(self.db.clone(), embedder);
                 searcher
@@ -228,8 +227,8 @@ impl ServerState {
             }));
         }
 
-        let (embedding, embedding_error) = match self.ensure_embedder() {
-            Ok(embedder) => match embedder.embed_one(content) {
+        let (embedding, embedding_error) = match self.ensure_embedder().await {
+            Ok(embedder) => match embedder.embed_one(content).await {
                 Ok(embedding) => (Some(embedding), None::<String>),
                 Err(err) => (None, Some(err.to_string())),
             },
@@ -318,22 +317,18 @@ impl ServerState {
         Ok(taxonomy)
     }
 
-    fn ensure_embedder(&self) -> Result<Embedder> {
+    async fn ensure_embedder(&self) -> Result<Arc<dyn Embedder>> {
         if !self.embedder_loading_enabled {
             anyhow::bail!("embedding disabled for this server state");
         }
 
-        if let Some(embedder) = self
-            .embedder
-            .lock()
-            .expect("embedder mutex poisoned")
-            .clone()
-        {
-            return Ok(embedder);
+        let mut guard = self.embedder.lock().await;
+        if let Some(ref embedder) = *guard {
+            return Ok(embedder.clone());
         }
 
-        let embedder = Embedder::new().context("failed to load local embedding model")?;
-        let mut guard = self.embedder.lock().expect("embedder mutex poisoned");
+        let embedder: Arc<dyn Embedder> =
+            Arc::new(LocalEmbedder::new().context("failed to load local embedding model")?);
         *guard = Some(embedder.clone());
         Ok(embedder)
     }
@@ -363,10 +358,9 @@ async fn run() -> Result<()> {
     let state = ServerState::new().await?;
 
     let stdin = io::stdin();
-    let mut stdout = io::stdout();
+    let mut lines = io::BufReader::new(stdin).lines();
 
-    for line in stdin.lock().lines() {
-        let line = line.context("failed to read stdin line")?;
+    while let Some(Ok(line)) = lines.next() {
         if line.trim().is_empty() {
             continue;
         }
@@ -375,6 +369,7 @@ async fn run() -> Result<()> {
             Ok(request) => request,
             Err(err) => {
                 let response = error_response(Value::Null, -32700, &format!("invalid JSON: {err}"));
+                let mut stdout = io::stdout();
                 writeln!(stdout, "{}", serde_json::to_string(&response)?)?;
                 stdout.flush()?;
                 continue;
@@ -382,6 +377,7 @@ async fn run() -> Result<()> {
         };
 
         if let Some(response) = handle_request(&state, &request).await {
+            let mut stdout = io::stdout();
             writeln!(stdout, "{}", serde_json::to_string(&response)?)?;
             stdout.flush()?;
         }

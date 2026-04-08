@@ -1,6 +1,7 @@
 //! Semantic search and FTS over the AiMem store.
 
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use crate::{
     db::{AimemDb, DbError},
@@ -22,14 +23,26 @@ pub enum SearchError {
 }
 
 /// Searcher — vector + keyword search over the AiMem store.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Searcher {
     db: AimemDb,
-    embedder: Option<Embedder>,
+    embedder: Option<Arc<dyn Embedder>>,
+}
+
+impl std::fmt::Debug for Searcher {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Searcher")
+            .field("db", &self.db)
+            .field(
+                "embedder",
+                &self.embedder.as_ref().map(|_| "Some(Arc<dyn Embedder>)"),
+            )
+            .finish()
+    }
 }
 
 impl Searcher {
-    pub fn new(db: AimemDb, embedder: Embedder) -> Self {
+    pub fn new(db: AimemDb, embedder: Arc<dyn Embedder>) -> Self {
         Self {
             db,
             embedder: Some(embedder),
@@ -38,6 +51,10 @@ impl Searcher {
 
     pub fn keyword_only(db: AimemDb) -> Self {
         Self { db, embedder: None }
+    }
+
+    pub fn embedder(&self) -> Option<Arc<dyn Embedder>> {
+        self.embedder.clone()
     }
 
     /// Semantic vector search using Turso's `vector_distance_cos`.
@@ -52,8 +69,10 @@ impl Searcher {
             .embedder
             .as_ref()
             .ok_or(SearchError::EmbedderUnavailable)?
-            .embed_one(query)?;
-        let qvec_json = Embedder::to_vector32_json(&qvec);
+            .embed_one(query)
+            .await?;
+        self.db.assert_embedding_dimension(qvec.len()).await?;
+        let qvec_json = crate::embedder::to_vector32_json(&qvec);
 
         let conn = self.db.conn()?;
 

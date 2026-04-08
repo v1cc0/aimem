@@ -9,6 +9,7 @@
 
 use std::collections::HashMap;
 use std::path::Path;
+use std::sync::Arc;
 
 use thiserror::Error;
 
@@ -211,21 +212,6 @@ pub async fn l3_search(
 // ── MemoryStack — unified interface ──────────────────────────────────────────
 
 /// Full 4-layer memory stack.
-///
-/// ```rust,no_run
-/// use aimem_core::{AimemDb, Config, Embedder, MemoryStack};
-/// # async fn run() -> anyhow::Result<()> {
-/// let cfg = Config::load()?;
-/// let db = AimemDb::open(&cfg.db_path).await?;
-/// let embedder = Embedder::new()?;
-/// let stack = MemoryStack::new(db, embedder, &cfg);
-///
-/// println!("{}", stack.wake_up(None).await?);
-/// println!("{}", stack.recall(Some("my_project"), None).await?);
-/// println!("{}", stack.search("pricing discussion", None, None).await?);
-/// # Ok(())
-/// # }
-/// ```
 #[derive(Debug, Clone)]
 pub struct MemoryStack {
     db: AimemDb,
@@ -234,7 +220,7 @@ pub struct MemoryStack {
 }
 
 impl MemoryStack {
-    pub fn new(db: AimemDb, embedder: Embedder, cfg: &Config) -> Self {
+    pub fn new(db: AimemDb, embedder: Arc<dyn Embedder>, cfg: &Config) -> Self {
         let searcher = Searcher::new(db.clone(), embedder);
         Self {
             db,
@@ -268,6 +254,57 @@ impl MemoryStack {
         room: Option<&str>,
     ) -> Result<String, LayerError> {
         l3_search(&self.searcher, query, wing, room, 5).await
+    }
+
+    /// File a new memory (drawer) into the L1-L3 store.
+    /// This handles embedding generation and DB insertion automatically.
+    pub async fn file_drawer(
+        &self,
+        wing: &str,
+        room: &str,
+        content: String,
+        parts: Vec<crate::types::ContentPart>,
+        agent: &str,
+    ) -> Result<String, LayerError> {
+        let parts_for_embedding = if parts.is_empty() {
+            vec![crate::types::ContentPart::text(content.clone())]
+        } else {
+            parts.clone()
+        };
+
+        let embedding = if let Some(ref emb) = self.searcher.embedder() {
+            let vecs = emb
+                .embed(&[parts_for_embedding])
+                .await
+                .map_err(SearchError::from)?;
+            vecs.into_iter().next()
+        } else {
+            None
+        };
+
+        let now = chrono::Utc::now().to_rfc3339();
+        let digest = md5::compute(format!("{wing}{room}{content}{now}").as_bytes());
+        let id = format!("mem_{wing}_{digest:x}");
+
+        let drawer = Drawer {
+            id: id.clone(),
+            wing: wing.to_string(),
+            room: room.to_string(),
+            content,
+            parts,
+            source_file: None,
+            chunk_index: 0,
+            added_by: agent.to_string(),
+            filed_at: now,
+        };
+
+        self.db.insert_drawer(&drawer, embedding.as_deref()).await?;
+        Ok(id)
+    }
+
+    /// Access the underlying searcher.
+    pub fn searcher(&self) -> &Searcher {
+        &self.searcher
     }
 
     /// Status of the whole stack.

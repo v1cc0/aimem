@@ -62,6 +62,8 @@ pub enum DbError {
     Conversion(String),
     #[error("Serialization error: {0}")]
     Serde(#[from] serde_json::Error),
+    #[error("Embedding dimension mismatch: store uses {expected}, attempted {actual}")]
+    EmbeddingDimensionMismatch { expected: usize, actual: usize },
 }
 
 pub type DbResult<T> = Result<T, DbError>;
@@ -85,6 +87,11 @@ CREATE INDEX IF NOT EXISTS idx_drawers_wing     ON drawers(wing);
 CREATE INDEX IF NOT EXISTS idx_drawers_room     ON drawers(room);
 CREATE INDEX IF NOT EXISTS idx_drawers_wing_room ON drawers(wing, room);
 CREATE INDEX IF NOT EXISTS idx_drawers_source   ON drawers(source_file);
+
+CREATE TABLE IF NOT EXISTS aimem_meta (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS entities (
     id          TEXT PRIMARY KEY,
@@ -178,6 +185,87 @@ impl AimemDb {
         Ok(())
     }
 
+    /// Return the configured embedding dimension, inferring it from existing
+    /// stored vectors when upgrading older databases that predate metadata.
+    pub async fn embedding_dimension(&self) -> DbResult<Option<usize>> {
+        let conn = self.conn()?;
+
+        let mut meta_rows = conn
+            .query(
+                "SELECT value FROM aimem_meta WHERE key = 'embedding_dim' LIMIT 1",
+                (),
+            )
+            .await?;
+        if let Some(row) = meta_rows.next().await? {
+            let raw = val_to_string(&row, 0)?;
+            let dim = raw.parse::<usize>().map_err(|err| {
+                DbError::Conversion(format!("invalid embedding_dim metadata {raw:?}: {err}"))
+            })?;
+            return Ok(Some(dim));
+        }
+
+        let mut rows = conn
+            .query(
+                "SELECT length(embedding) FROM drawers WHERE embedding IS NOT NULL LIMIT 1",
+                (),
+            )
+            .await?;
+        let Some(row) = rows.next().await? else {
+            return Ok(None);
+        };
+
+        let bytes = row.get_value(0)?.as_integer().copied().ok_or_else(|| {
+            DbError::Conversion("length(embedding) did not return an integer".to_string())
+        })?;
+        if bytes <= 0 || bytes % 4 != 0 {
+            return Err(DbError::Conversion(format!(
+                "unexpected embedding blob length {bytes}; cannot infer dimension"
+            )));
+        }
+
+        let dim = (bytes / 4) as usize;
+        conn.execute(
+            "INSERT OR REPLACE INTO aimem_meta (key, value) VALUES ('embedding_dim', ?1)",
+            [dim.to_string()],
+        )
+        .await?;
+        Ok(Some(dim))
+    }
+
+    /// Validate that a query vector matches the store dimension when known.
+    pub async fn assert_embedding_dimension(&self, dim: usize) -> DbResult<()> {
+        if let Some(expected) = self.embedding_dimension().await? {
+            if expected != dim {
+                return Err(DbError::EmbeddingDimensionMismatch {
+                    expected,
+                    actual: dim,
+                });
+            }
+        }
+        Ok(())
+    }
+
+    /// Validate or initialize the store dimension before writing an embedding.
+    async fn ensure_embedding_dimension_for_write(&self, dim: usize) -> DbResult<()> {
+        let conn = self.conn()?;
+        if let Some(expected) = self.embedding_dimension().await? {
+            if expected != dim {
+                return Err(DbError::EmbeddingDimensionMismatch {
+                    expected,
+                    actual: dim,
+                });
+            }
+            return Ok(());
+        }
+
+        conn.execute(
+            "INSERT OR REPLACE INTO aimem_meta (key, value) VALUES ('embedding_dim', ?1)",
+            [dim.to_string()],
+        )
+        .await?;
+        Ok(())
+    }
+
     // ──────────────────────────────────────────────────────────────────────
     // Drawer operations
     // ──────────────────────────────────────────────────────────────────────
@@ -189,6 +277,10 @@ impl AimemDb {
         embedding: Option<&[f32]>,
     ) -> DbResult<bool> {
         let conn = self.conn()?;
+
+        if let Some(v) = embedding {
+            self.ensure_embedding_dimension_for_write(v.len()).await?;
+        }
 
         // Serialize embedding as JSON array for vector32()
         let emb_json: Option<String> = embedding.map(|v| {

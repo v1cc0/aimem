@@ -7,8 +7,8 @@ async fn main() -> anyhow::Result<()> {
     let drawer = Drawer {
         id: "drawer_example_basic_001".into(),
         wing: "demo_app".into(),
-        room: "backend".into(),
-        content: "The backend uses Rust and Turso for persistent memory.".into(),
+        room: "general".into(),
+        content: "AiMem stores text memories in Turso.".into(),
         parts: vec![],
         source_file: Some("README.md".into()),
         chunk_index: 0,

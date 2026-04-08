@@ -5,6 +5,7 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -13,7 +14,7 @@ use walkdir::WalkDir;
 use crate::{
     db::{AimemDb, DbError},
     embedder::{EmbedError, Embedder},
-    types::Drawer,
+    types::{ContentPart, Drawer},
 };
 
 #[derive(Debug, Error)]
@@ -152,16 +153,28 @@ pub struct MineStats {
 // ── Miner ────────────────────────────────────────────────────────────────────
 
 /// Project file miner.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Miner {
     db: AimemDb,
-    embedder: Option<Embedder>,
+    embedder: Option<Arc<dyn Embedder>>,
+}
+
+impl std::fmt::Debug for Miner {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Miner")
+            .field("db", &self.db)
+            .field(
+                "embedder",
+                &self.embedder.as_ref().map(|_| "Some(Arc<dyn Embedder>)"),
+            )
+            .finish()
+    }
 }
 
 impl Miner {
     /// Create a miner with optional embedding support.
     /// Pass `None` for `embedder` to store text only (no vector search).
-    pub fn new(db: AimemDb, embedder: Option<Embedder>) -> Self {
+    pub fn new(db: AimemDb, embedder: Option<Arc<dyn Embedder>>) -> Self {
         Self { db, embedder }
     }
 
@@ -230,8 +243,9 @@ impl Miner {
 
             // Optionally embed all chunks at once (batch is faster)
             let embeddings: Vec<Option<Vec<f32>>> = if let Some(ref emb) = self.embedder {
-                let texts: Vec<&str> = chunks.iter().map(|c| c.as_str()).collect();
-                match emb.embed(&texts) {
+                let inputs: Vec<Vec<ContentPart>> =
+                    chunks.iter().map(|c| vec![ContentPart::text(c)]).collect();
+                match emb.embed(&inputs).await {
                     Ok(vecs) => vecs.into_iter().map(Some).collect(),
                     Err(e) => {
                         tracing::warn!("embedding failed for {source}: {e}");

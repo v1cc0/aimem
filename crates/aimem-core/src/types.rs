@@ -2,29 +2,65 @@
 
 use serde::{Deserialize, Serialize};
 
-/// A single multimodal content part associated with a drawer.
+/// A single piece of a multimodal drawer.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ContentPart {
-    Text { text: String },
-    Image { uri: String, mime: String },
-    Audio { uri: String, mime: String },
-    Video { uri: String, mime: String },
+    Text {
+        text: String,
+    },
+    Image {
+        /// Optional URI for reference (e.g. local path or remote URL).
+        uri: Option<String>,
+        mime: String,
+        /// Raw bytes. This is NOT serialized to the DB to keep JSON small.
+        #[serde(skip)]
+        data: Option<Vec<u8>>,
+    },
+    Audio {
+        uri: Option<String>,
+        mime: String,
+        #[serde(skip)]
+        data: Option<Vec<u8>>,
+    },
+    Video {
+        uri: Option<String>,
+        mime: String,
+        #[serde(skip)]
+        data: Option<Vec<u8>>,
+    },
 }
 
 impl ContentPart {
-    pub fn text(text: impl Into<String>) -> Self {
-        Self::Text { text: text.into() }
+    pub fn text(t: impl Into<String>) -> Self {
+        Self::Text { text: t.into() }
+    }
+
+    pub fn image(mime: impl Into<String>, data: Vec<u8>) -> Self {
+        Self::Image {
+            uri: None,
+            mime: mime.into(),
+            data: Some(data),
+        }
+    }
+
+    pub fn as_text(&self) -> Option<&str> {
+        match self {
+            Self::Text { text } => Some(text),
+            _ => None,
+        }
     }
 }
 
-/// A drawer — one verbatim text chunk stored in AiMem.
+/// A drawer — one verbatim chunk (text or multimodal) stored in AiMem.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Drawer {
     pub id: String,
     pub wing: String,
     pub room: String,
+    /// Primary text content (fallback for text-only clients).
     pub content: String,
+    /// Multimodal parts (optional).
     #[serde(default)]
     pub parts: Vec<ContentPart>,
     pub source_file: Option<String>,
