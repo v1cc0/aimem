@@ -1,8 +1,8 @@
 # aimem-mcp
 
-`aimem-mcp` is the stdio MCP server for AiMem.
+**Language / 语言 / 言語:** English | [简体中文](https://github.com/v1cc0/aimem/blob/main/crates/aimem-mcp/README.zh-CN.md) | [日本語](https://github.com/v1cc0/aimem/blob/main/crates/aimem-mcp/README.ja.md)
 
-It exposes AiMem storage and retrieval capabilities to MCP-compatible clients over stdio.
+`aimem-mcp` is the stdio MCP server for AiMem.
 
 ## Install
 
@@ -15,16 +15,6 @@ cargo install aimem-mcp
 ```bash
 aimem-mcp
 ```
-
-## What the current MCP server exposes
-
-The server reflects the newer 0.3.x capabilities too:
-
-- keyword + semantic search
-- duplicate checks
-- manual drawer filing
-- embedding-aware search behavior
-- store status with embedding profile
 
 ## Tools
 
@@ -40,14 +30,6 @@ The server reflects the newer 0.3.x capabilities too:
 
 ## Notes
 
-- `aimem_status` reports:
-  - total drawers
-  - wing / room counts
-  - DB path
-  - embedding profile
+- `aimem_status` reports the current embedding profile.
 - `aimem_search` prefers semantic search when an embedder is available and falls back to keyword search otherwise.
-- `aimem_add_drawer` uses duplicate checking before insertion.
-
-Default local database path:
-
-- `~/.aimem/aimem.db`
+- default DB path is `~/.aimem/aimem.db`.

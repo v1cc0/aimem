@@ -1,39 +1,39 @@
 # aimem-core
 
-**Language / 语言 / 言語:** English | [简体中文](https://github.com/v1cc0/aimem/blob/main/crates/aimem-core/README.zh-CN.md) | [日本語](https://github.com/v1cc0/aimem/blob/main/crates/aimem-core/README.ja.md)
+**语言 / Language / 言語：** [English](https://github.com/v1cc0/aimem/blob/main/crates/aimem-core/README.md) | 简体中文 | [日本語](https://github.com/v1cc0/aimem/blob/main/crates/aimem-core/README.ja.md)
 
-`aimem-core` is AiMem's Rust core library.
+`aimem-core` 是 AiMem 的 Rust 核心库。
 
-It provides:
+它提供：
 
-- Turso-backed storage
-- project mining and conversation import
-- keyword and semantic retrieval
-- memory layers / wake-up context generation
-- knowledge graph support
-- embedding profile guards
-- multimodal content primitives
+- 基于 Turso 的存储
+- 项目挖掘与会话导入
+- 关键词 / 语义检索
+- memory layers / wake-up context
+- 知识图谱
+- embedding profile guard
+- 多模态内容原语
 
-CLI lives in `aimem-cli`. MCP server lives in `aimem-mcp`.
+CLI 在 `aimem-cli`，MCP server 在 `aimem-mcp`。
 
-## 0.3.x capabilities
+## 0.3.x 能力
 
-Current `aimem-core` includes:
+当前这一代 `aimem-core` 已包含：
 
 - async embedding flow
 - `LocalEmbedder`
 - opt-in `Gemini2Embedder`
-- multimodal `ContentPart`
-- embedding profile metadata:
+- 多模态 `ContentPart`
+- embedding profile 元数据：
   - provider
   - model
   - dimension
-- profile guards against mixed stores
+- 防止混库的 profile guard
 - `Drawer` helper API
 - `MemoryStack::file_text(...)`
-- tighter extractor heuristics with multilingual regression tests
+- 收窄后的 extractor 与多语言回归测试
 
-## Install
+## 安装
 
 ```toml
 [dependencies]
@@ -44,56 +44,56 @@ tokio = { version = "1", features = ["full"] }
 cargo add aimem-core
 ```
 
-## Recommended API surface
+## 推荐 API 面
 
-Prefer either:
+优先使用：
 
 ```rust
 use aimem_core::prelude::*;
 ```
 
-or explicit root imports like:
+或者 crate 根导出：
 
 ```rust
 use aimem_core::{AimemDb, Drawer, LocalEmbedder, MemoryStack, Miner, Searcher};
 ```
 
-## Core concepts
+## 核心概念
 
-- **Store** — one AiMem DB
-- **Wing** — project or domain
-- **Room** — topic inside a wing
-- **Drawer** — one stored chunk
-- **ContentPart** — multimodal part inside a drawer
-- **L0/L1/L2/L3** — identity, essential story, recall, deep search
+- **Store** — 一个 AiMem DB
+- **Wing** — 项目 / 领域
+- **Room** — 主题
+- **Drawer** — 一段记忆切片
+- **ContentPart** — drawer 内的多模态部件
+- **L0/L1/L2/L3** — identity、essential story、recall、deep search
 
-## Embedding modes
+## Embedding 模式
 
 ### Local
 
 - `LocalEmbedder`
-- default recommendation
-- embedding stays local
+- 默认推荐
+- embedding 本地生成
 
 ### Remote
 
 - `Gemini2Embedder`
-- explicit opt-in
-- only explicit text / data URI / raw bytes are sent
+- 明确 opt-in
+- 只发送显式提供的文本 / data URI / raw bytes
 
-URI-only multimedia parts are not automatically read from disk and uploaded.
+URI-only 的多媒体 part 不会自动读取本地文件再上传。
 
-## Store compatibility guard
+## Store 兼容性保护
 
-`aimem-core` records embedding profile metadata and validates semantic writes and queries against:
+`aimem-core` 会把 embedding profile 写入 store，并在语义写入和查询时校验：
 
 - provider
 - model
 - dimension
 
-This prevents silent mixing of incompatible embedding stores.
+这样可以防止不兼容 embedding 静默混库。
 
-## Drawer helpers
+## Drawer helper
 
 ```rust,no_run
 use aimem_core::prelude::*;
@@ -103,7 +103,7 @@ let drawer = Drawer::new("id", "wing", "room", "content", "agent")
     .with_chunk_index(3);
 ```
 
-For multimodal drawers:
+多模态 drawer：
 
 ```rust,no_run
 use aimem_core::prelude::*;
@@ -118,7 +118,7 @@ let drawer = Drawer::multimodal(
 );
 ```
 
-## Semantic search example
+## 语义搜索例子
 
 ```rust,no_run
 use std::sync::Arc;
@@ -147,7 +147,7 @@ async fn main() -> anyhow::Result<()> {
 }
 ```
 
-## Filing text directly
+## 直接 filing 文本
 
 ```rust,no_run
 use std::sync::Arc;
@@ -166,9 +166,9 @@ println!("{id}");
 # }
 ```
 
-## Notes
+## 注意事项
 
-- `AimemDb::open()` bootstraps schema automatically.
-- `Miner::new(db, None)` and `ConvoMiner::new(db, None)` work fine for text-only filing.
-- drawers without embeddings still appear in keyword search.
-- `AimemDb::embedding_profile()` reports the current store profile.
+- `AimemDb::open()` 会自动建表。
+- `Miner::new(db, None)` / `ConvoMiner::new(db, None)` 适合 text-only 落库。
+- 没有 embedding 的 drawer 依然能参与关键词搜索。
+- `AimemDb::embedding_profile()` 可查看当前 store profile。

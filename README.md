@@ -1,5 +1,9 @@
 # AiMem
 
+**Language / 语言 / 言語:** English | [简体中文](https://github.com/v1cc0/aimem/blob/main/README.zh-CN.md) | [日本語](https://github.com/v1cc0/aimem/blob/main/README.ja.md)
+
+> GitHub and crates.io do not provide native README language tabs here, so AiMem uses language switch links instead.
+
 [![crates.io: aimem-core](https://img.shields.io/crates/v/aimem-core)](https://crates.io/crates/aimem-core)
 [![crates.io: aimem-cli](https://img.shields.io/crates/v/aimem-cli)](https://crates.io/crates/aimem-cli)
 [![crates.io: aimem-mcp](https://img.shields.io/crates/v/aimem-mcp)](https://crates.io/crates/aimem-mcp)
@@ -18,7 +22,7 @@ It stores long-term memory in a single Turso database and exposes:
 
 ## What 0.3.x added
 
-The `0.3.x` line introduced the main architectural improvements that were missing from the old docs:
+The `0.3.x` line introduced the main architectural improvements that were missing from older docs:
 
 - async embedding flow
 - `LocalEmbedder` and opt-in `Gemini2Embedder`
@@ -55,45 +59,19 @@ crates/
 - MCP integration for agent tooling
 - no Python runtime in this repository
 
-## Architecture
-
-```text
-project files / chat exports / manual filing
-                  │
-                  ▼
-           aimem CLI / MCP
-                  │
-                  ▼
-               aimem-core
-      ┌────────────┼────────────┐
-      │            │            │
-      ▼            ▼            ▼
-    mining       search      memory stack
-      │            │            │
-      └────────────┴────────────┘
-                  │
-                  ▼
-          ~/.aimem/aimem.db
-     + embedding profile metadata
-```
-
-The shape is intentionally simple: one DB file, thin frontends, reusable core logic.
-
 ## Embedding modes
 
-AiMem currently supports two embedding modes:
-
-### 1. Local
+### Local
 
 - `LocalEmbedder`
 - backed by `fastembed`
 - default recommendation
 - keeps embedding generation local
 
-### 2. Remote
+### Remote
 
 - `Gemini2Embedder`
-- explicit opt-in through CLI/API
+- explicit opt-in
 - sends only data you explicitly provide
 
 Important safety boundary:
@@ -111,25 +89,7 @@ That means writes and semantic queries are checked against:
 - model
 - dimension
 
-So switching from local `384d` embeddings to remote `768d` embeddings in the same DB will fail fast instead of silently corrupting search quality.
-
-## API stability
-
-Prefer one of the high-level integration surfaces:
-
-### 1. Prelude
-
-```rust
-use aimem_core::prelude::*;
-```
-
-### 2. Explicit root imports
-
-```rust
-use aimem_core::{AimemDb, Config, ConvoMiner, Drawer, LocalEmbedder, MemoryStack, Miner, Searcher};
-```
-
-New integrations should avoid depending on deep internal module paths when root exports or `prelude` are enough.
+So switching from local `384d` embeddings to remote `768d` embeddings in the same DB fails fast instead of silently degrading retrieval quality.
 
 ## Install
 
@@ -149,19 +109,6 @@ Library:
 
 ```bash
 cargo add aimem-core
-```
-
-## Build
-
-```bash
-cargo build
-```
-
-## Test
-
-```bash
-cargo test
-cargo test -p aimem-core --test performance_smoke -- --ignored
 ```
 
 ## Quick start
@@ -241,7 +188,7 @@ aimem mine /path/to/project --no-embed
 
 Useful notes:
 
-- `aimem status` now shows the current embedding profile stored in the DB.
+- `aimem status` shows the current embedding profile stored in the DB.
 - `aimem search` and `aimem mine` can use `--gemini-key` or `GEMINI_API_KEY` for opt-in remote embedding.
 - project mining expects an `aimem.yaml` file in the target project root.
 
@@ -263,7 +210,7 @@ Current tools:
 - `aimem_add_drawer`
 - `aimem_delete_drawer`
 
-`aimem_status` now also reports the current embedding profile.
+`aimem_status` also reports the current embedding profile.
 
 ## Config
 

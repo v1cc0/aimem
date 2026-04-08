@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-04-09
+
+### Changed
+- Added English / Simplified Chinese / Japanese README variants for the repository and all published crates.
+- Added explicit language-switch links at the top of GitHub and crates.io-facing README content.
+- Documented that GitHub / crates.io use README language links rather than native tabs.
+
+
 ## [0.3.2] - 2026-04-09
 
 ### Changed
