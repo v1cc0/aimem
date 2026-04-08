@@ -2,6 +2,22 @@
 
 use serde::{Deserialize, Serialize};
 
+/// A single multimodal content part associated with a drawer.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ContentPart {
+    Text { text: String },
+    Image { uri: String, mime: String },
+    Audio { uri: String, mime: String },
+    Video { uri: String, mime: String },
+}
+
+impl ContentPart {
+    pub fn text(text: impl Into<String>) -> Self {
+        Self::Text { text: text.into() }
+    }
+}
+
 /// A drawer — one verbatim text chunk stored in AiMem.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Drawer {
@@ -9,6 +25,8 @@ pub struct Drawer {
     pub wing: String,
     pub room: String,
     pub content: String,
+    #[serde(default)]
+    pub parts: Vec<ContentPart>,
     pub source_file: Option<String>,
     pub chunk_index: i64,
     pub added_by: String,

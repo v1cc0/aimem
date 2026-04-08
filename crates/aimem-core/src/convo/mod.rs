@@ -146,6 +146,7 @@ impl ConvoMiner {
                     wing: wing.to_string(),
                     room: room.to_string(),
                     content: chunk.clone(),
+                    parts: vec![],
                     source_file: Some(source.clone()),
                     chunk_index: i as i64,
                     added_by: agent.to_string(),

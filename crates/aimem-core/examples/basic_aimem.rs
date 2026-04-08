@@ -9,6 +9,7 @@ async fn main() -> anyhow::Result<()> {
         wing: "demo_app".into(),
         room: "backend".into(),
         content: "The backend uses Rust and Turso for persistent memory.".into(),
+        parts: vec![],
         source_file: Some("README.md".into()),
         chunk_index: 0,
         added_by: "example".into(),

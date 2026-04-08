@@ -31,6 +31,7 @@
 //!     wing: "my_project".into(),
 //!     room: "decisions".into(),
 //!     content: "We chose Turso for native vector support.".into(),
+//!     parts: vec![],
 //!     source_file: None,
 //!     chunk_index: 0,
 //!     added_by: "claude".into(),
@@ -59,6 +60,8 @@ pub enum DbError {
     Io(#[from] std::io::Error),
     #[error("Type conversion: {0}")]
     Conversion(String),
+    #[error("Serialization error: {0}")]
+    Serde(#[from] serde_json::Error),
 }
 
 pub type DbResult<T> = Result<T, DbError>;
@@ -70,6 +73,7 @@ CREATE TABLE IF NOT EXISTS drawers (
     wing        TEXT NOT NULL,
     room        TEXT NOT NULL,
     content     TEXT NOT NULL,
+    parts       TEXT NOT NULL DEFAULT '[]',
     embedding   BLOB,
     source_file TEXT,
     chunk_index INTEGER NOT NULL DEFAULT 0,
@@ -157,6 +161,20 @@ impl AimemDb {
     async fn migrate(&self) -> DbResult<()> {
         let conn = self.conn()?;
         conn.execute_batch(INIT_SQL).await?;
+
+        if let Err(err) = conn
+            .execute(
+                "ALTER TABLE drawers ADD COLUMN parts TEXT NOT NULL DEFAULT '[]'",
+                (),
+            )
+            .await
+        {
+            let msg = err.to_string();
+            if !msg.contains("duplicate column name: parts") {
+                return Err(err.into());
+            }
+        }
+
         Ok(())
     }
 
@@ -177,16 +195,17 @@ impl AimemDb {
             let nums: Vec<String> = v.iter().map(|f| f.to_string()).collect();
             format!("[{}]", nums.join(","))
         });
+        let parts_json = serde_json::to_string(&drawer.parts)?;
 
         // Use vector32(?) to store embedding in Turso's native format
         let sql = if emb_json.is_some() {
             "INSERT OR IGNORE INTO drawers \
-             (id, wing, room, content, embedding, source_file, chunk_index, added_by, filed_at) \
-             VALUES (?1, ?2, ?3, ?4, vector32(?5), ?6, ?7, ?8, ?9)"
+             (id, wing, room, content, parts, embedding, source_file, chunk_index, added_by, filed_at) \
+             VALUES (?1, ?2, ?3, ?4, ?5, vector32(?6), ?7, ?8, ?9, ?10)"
         } else {
             "INSERT OR IGNORE INTO drawers \
-             (id, wing, room, content, embedding, source_file, chunk_index, added_by, filed_at) \
-             VALUES (?1, ?2, ?3, ?4, NULL, ?5, ?6, ?7, ?8)"
+             (id, wing, room, content, parts, embedding, source_file, chunk_index, added_by, filed_at) \
+             VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, ?7, ?8, ?9)"
         };
 
         let rows_affected = if let Some(ref emb) = emb_json {
@@ -197,6 +216,7 @@ impl AimemDb {
                     drawer.wing.as_str(),
                     drawer.room.as_str(),
                     drawer.content.as_str(),
+                    parts_json.as_str(),
                     emb.as_str(),
                     drawer.source_file.as_deref(),
                     drawer.chunk_index,
@@ -213,6 +233,7 @@ impl AimemDb {
                     drawer.wing.as_str(),
                     drawer.room.as_str(),
                     drawer.content.as_str(),
+                    parts_json.as_str(),
                     drawer.source_file.as_deref(),
                     drawer.chunk_index,
                     drawer.added_by.as_str(),
@@ -255,7 +276,7 @@ impl AimemDb {
         let conn = self.conn()?;
         let mut rows = conn
             .query(
-                "SELECT id, wing, room, content, source_file, chunk_index, added_by, filed_at \
+                "SELECT id, wing, room, content, parts, source_file, chunk_index, added_by, filed_at \
                  FROM drawers WHERE content = ?1 ORDER BY filed_at DESC LIMIT ?2",
                 turso::params![content, limit as i64],
             )
@@ -332,28 +353,28 @@ impl AimemDb {
 
         let (sql, params_vec): (String, Vec<String>) = match (wing, room) {
             (Some(w), Some(r)) => (
-                "SELECT id, wing, room, content, source_file, chunk_index, added_by, filed_at \
+                "SELECT id, wing, room, content, parts, source_file, chunk_index, added_by, filed_at \
                  FROM drawers WHERE wing = ?1 AND room = ?2 \
                  ORDER BY filed_at DESC LIMIT ?3"
                     .to_string(),
                 vec![w.to_string(), r.to_string(), limit.to_string()],
             ),
             (Some(w), None) => (
-                "SELECT id, wing, room, content, source_file, chunk_index, added_by, filed_at \
+                "SELECT id, wing, room, content, parts, source_file, chunk_index, added_by, filed_at \
                  FROM drawers WHERE wing = ?1 \
                  ORDER BY filed_at DESC LIMIT ?2"
                     .to_string(),
                 vec![w.to_string(), limit.to_string()],
             ),
             (None, Some(r)) => (
-                "SELECT id, wing, room, content, source_file, chunk_index, added_by, filed_at \
+                "SELECT id, wing, room, content, parts, source_file, chunk_index, added_by, filed_at \
                  FROM drawers WHERE room = ?1 \
                  ORDER BY filed_at DESC LIMIT ?2"
                     .to_string(),
                 vec![r.to_string(), limit.to_string()],
             ),
             (None, None) => (
-                "SELECT id, wing, room, content, source_file, chunk_index, added_by, filed_at \
+                "SELECT id, wing, room, content, parts, source_file, chunk_index, added_by, filed_at \
                  FROM drawers ORDER BY filed_at DESC LIMIT ?1"
                     .to_string(),
                 vec![limit.to_string()],
@@ -453,14 +474,23 @@ fn row_to_drawer(row: &turso::Row) -> DbResult<Drawer> {
         wing: val_to_string(row, 1)?,
         room: val_to_string(row, 2)?,
         content: val_to_string(row, 3)?,
+        parts: parse_parts(&val_to_string(row, 4)?)?,
         source_file: {
-            let s = val_to_string(row, 4)?;
+            let s = val_to_string(row, 5)?;
             if s.is_empty() { None } else { Some(s) }
         },
-        chunk_index: row.get_value(5)?.as_integer().copied().unwrap_or(0),
-        added_by: val_to_string(row, 6)?,
-        filed_at: val_to_string(row, 7)?,
+        chunk_index: row.get_value(6)?.as_integer().copied().unwrap_or(0),
+        added_by: val_to_string(row, 7)?,
+        filed_at: val_to_string(row, 8)?,
     })
+}
+
+fn parse_parts(raw: &str) -> Result<Vec<crate::types::ContentPart>, serde_json::Error> {
+    if raw.is_empty() || raw == "[]" {
+        Ok(Vec::new())
+    } else {
+        serde_json::from_str(raw)
+    }
 }
 
 fn val_to_string(row: &turso::Row, idx: usize) -> DbResult<String> {

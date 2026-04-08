@@ -131,6 +131,7 @@
 //!         wing: "demo".into(),
 //!         room: "backend".into(),
 //!         content: "Turso keeps the backend local and simple.".into(),
+//!         parts: vec![],
 //!         source_file: None,
 //!         chunk_index: 0,
 //!         added_by: "example".into(),
@@ -190,6 +191,7 @@
 //!         wing: "my_project".to_string(),
 //!         room: "decisions".to_string(),
 //!         content: content.to_string(),
+//!         parts: vec![],
 //!         source_file: Some("DECISIONS.md".to_string()),
 //!         chunk_index: 0,
 //!         added_by: "claude".to_string(),
@@ -246,7 +248,7 @@ pub use knowledge::KnowledgeGraph;
 pub use layers::MemoryStack;
 pub use miner::Miner;
 pub use search::Searcher;
-pub use types::{Drawer, DrawerMeta, Entity, RoomNode, SearchResult, Triple, Tunnel};
+pub use types::{ContentPart, Drawer, DrawerMeta, Entity, RoomNode, SearchResult, Triple, Tunnel};
 
 /// Curated high-level imports for typical AiMem integrations.
 ///
@@ -273,8 +275,8 @@ pub use types::{Drawer, DrawerMeta, Entity, RoomNode, SearchResult, Triple, Tunn
 /// ```
 pub mod prelude {
     pub use crate::{
-        AimemDb, AimemGraph, Config, ConvoMineStats, ConvoMiner, Drawer, DrawerMeta, Embedder,
-        Entity, KnowledgeGraph, MemoryStack, Miner, RoomNode, SearchResult, Searcher, Triple,
-        Tunnel,
+        AimemDb, AimemGraph, Config, ContentPart, ConvoMineStats, ConvoMiner, Drawer, DrawerMeta,
+        Embedder, Entity, KnowledgeGraph, MemoryStack, Miner, RoomNode, SearchResult, Searcher,
+        Triple, Tunnel,
     };
 }

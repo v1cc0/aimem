@@ -80,8 +80,8 @@ impl Searcher {
 
         let mut results = Vec::new();
         while let Some(row) = rows.next().await? {
-            let drawer = row_to_drawer(&row);
-            let dist = match row.get_value(8)? {
+            let drawer = row_to_drawer(&row)?;
+            let dist = match row.get_value(9)? {
                 turso::Value::Real(f) => f as f32,
                 turso::Value::Integer(i) => i as f32,
                 _ => 1.0,
@@ -125,7 +125,7 @@ impl Searcher {
 
         let mut drawers = Vec::new();
         while let Some(row) = rows.next().await? {
-            drawers.push(row_to_drawer(&row));
+            drawers.push(row_to_drawer(&row)?);
         }
         Ok(drawers)
     }
@@ -194,7 +194,7 @@ fn build_vector_sql(wing: Option<&str>, room: Option<&str>) -> String {
         (None, None) => "?2",
     };
     format!(
-        "SELECT id, wing, room, content, source_file, chunk_index, added_by, filed_at, \
+        "SELECT id, wing, room, content, parts, source_file, chunk_index, added_by, filed_at, \
          vector_distance_cos(embedding, vector32(?1)) AS dist \
          FROM drawers \
          WHERE embedding IS NOT NULL {filter} \
@@ -215,30 +215,39 @@ fn build_keyword_sql(wing: Option<&str>, room: Option<&str>) -> String {
         (None, None) => "?2",
     };
     format!(
-        "SELECT id, wing, room, content, source_file, chunk_index, added_by, filed_at \
+        "SELECT id, wing, room, content, parts, source_file, chunk_index, added_by, filed_at \
          FROM drawers \
          WHERE content LIKE ?1 ESCAPE '\\' {filter} \
          ORDER BY filed_at DESC LIMIT {limit_param}"
     )
 }
 
-fn row_to_drawer(row: &turso::Row) -> Drawer {
-    Drawer {
+fn row_to_drawer(row: &turso::Row) -> Result<Drawer, DbError> {
+    Ok(Drawer {
         id: val_str(row, 0),
         wing: val_str(row, 1),
         room: val_str(row, 2),
         content: val_str(row, 3),
+        parts: parse_parts(&val_str(row, 4))?,
         source_file: {
-            let s = val_str(row, 4);
+            let s = val_str(row, 5);
             if s.is_empty() { None } else { Some(s) }
         },
         chunk_index: row
-            .get_value(5)
+            .get_value(6)
             .ok()
             .and_then(|v| v.as_integer().copied())
             .unwrap_or(0),
-        added_by: val_str(row, 6),
-        filed_at: val_str(row, 7),
+        added_by: val_str(row, 7),
+        filed_at: val_str(row, 8),
+    })
+}
+
+fn parse_parts(raw: &str) -> Result<Vec<crate::types::ContentPart>, DbError> {
+    if raw.is_empty() || raw == "[]" {
+        Ok(Vec::new())
+    } else {
+        Ok(serde_json::from_str(raw)?)
     }
 }
 

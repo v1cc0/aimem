@@ -9,6 +9,7 @@ fn make_drawer(i: usize, room: &str, content: String) -> Drawer {
         wing: "perf_wing".into(),
         room: room.into(),
         content,
+        parts: vec![],
         source_file: Some(format!("file_{i}.md")),
         chunk_index: 0,
         added_by: "perf-test".into(),

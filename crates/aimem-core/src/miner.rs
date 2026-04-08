@@ -251,6 +251,7 @@ impl Miner {
                     wing: wing.clone(),
                     room: room.clone(),
                     content: chunk.clone(),
+                    parts: vec![],
                     source_file: Some(source.clone()),
                     chunk_index: i as i64,
                     added_by: agent.to_string(),
