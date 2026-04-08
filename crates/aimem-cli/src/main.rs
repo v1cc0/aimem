@@ -305,6 +305,7 @@ async fn cmd_status(db_path: Option<&Path>) -> Result<()> {
     let runtime = load_runtime(db_path).await?;
     let total_drawers = runtime.db.drawer_count().await?;
     let (wings, rooms) = runtime.db.taxonomy().await?;
+    let embedding_profile = runtime.db.embedding_profile().await?;
     let identity_exists = runtime.cfg.identity_path.exists();
     let identity_tokens_est = if identity_exists {
         std::fs::read_to_string(&runtime.cfg.identity_path)
@@ -319,6 +320,18 @@ async fn cmd_status(db_path: Option<&Path>) -> Result<()> {
     writeln!(&mut out, "=============")?;
     writeln!(&mut out, "db: {}", runtime.db_path.display())?;
     writeln!(&mut out, "drawers: {total_drawers}")?;
+    match (
+        embedding_profile.provider.as_deref(),
+        embedding_profile.model.as_deref(),
+        embedding_profile.dimension,
+    ) {
+        (Some(provider), Some(model), Some(dim)) => {
+            writeln!(&mut out, "embedding profile: {provider}/{model} ({dim}d)")?;
+        }
+        _ => {
+            writeln!(&mut out, "embedding profile: unset")?;
+        }
+    }
     writeln!(
         &mut out,
         "identity: {} ({}, ~{} tokens)",

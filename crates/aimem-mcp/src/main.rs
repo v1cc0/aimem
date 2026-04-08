@@ -56,11 +56,17 @@ impl ServerState {
     async fn tool_status(&self) -> Result<Value> {
         let total_drawers = self.db.drawer_count().await?;
         let (wings, rooms) = self.db.taxonomy().await?;
+        let embedding_profile = self.db.embedding_profile().await?;
 
         Ok(json!({
             "total_drawers": total_drawers,
             "wings": counts_vec_to_map(wings),
             "rooms": counts_vec_to_map(rooms),
+            "embedding_profile": {
+                "provider": embedding_profile.provider,
+                "model": embedding_profile.model,
+                "dimension": embedding_profile.dimension,
+            },
             "db_path": self.cfg.db_path.display().to_string(),
             "protocol": AIMEM_PROTOCOL,
             "aaak_dialect": AAAK_SPEC,
@@ -909,6 +915,9 @@ mod tests {
         assert_eq!(parsed["total_drawers"], 1);
         assert_eq!(parsed["wings"]["demo_app"], 1);
         assert_eq!(parsed["rooms"]["backend"], 1);
+        assert_eq!(parsed["embedding_profile"]["provider"], Value::Null);
+        assert_eq!(parsed["embedding_profile"]["model"], Value::Null);
+        assert_eq!(parsed["embedding_profile"]["dimension"], Value::Null);
     }
 
     #[tokio::test]
