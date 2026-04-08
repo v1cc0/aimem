@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-04-09
+
+### Changed
+- Refreshed top-level and crate READMEs to properly document the 0.3.x async embedding, multimodal content, embedding profile guard, helper APIs, CLI/MCP status output, and remote embedding safety boundaries.
+- Updated examples and installation/usage sections so GitHub and crates.io docs reflect the actually shipped 0.3.x behavior.
+
+
 ## [0.3.1] - 2026-04-09
 
 ### Added

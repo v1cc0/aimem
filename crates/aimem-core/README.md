@@ -4,6 +4,23 @@
 
 它是**库**，不是 CLI。CLI 在 `aimem-cli`，MCP server 在 `aimem-mcp`。
 
+## 0.3.x 关键能力
+
+当前这一代 `aimem-core` 已经不只是最早的“文本 + 本地 embedding”版本，而是包含了这些 0.3.x 能力：
+
+- async embedding flow
+- `LocalEmbedder`
+- opt-in `Gemini2Embedder`
+- 多模态 `ContentPart`
+- embedding profile 元数据：
+  - provider
+  - model
+  - dimension
+- profile guard，防止混库
+- `Drawer` helper API
+- `MemoryStack::file_text(...)`
+- 收窄后的 extractor 规则与多语言回归测试
+
 ## 安装
 
 ```toml
@@ -57,7 +74,39 @@ use aimem_core::miner::Miner;
 - **Wing**：项目或领域，例如 `my_app`
 - **Room**：主题，例如 `backend`、`decisions`
 - **Drawer**：一段原文切片
+- **ContentPart**：drawer 的多模态部件（text / image / audio / video）
 - **L0/L1/L2/L3**：唤醒文本、核心故事、按需回忆、深度搜索
+
+## Embedding 模式
+
+### Local
+
+- `LocalEmbedder`
+- 默认推荐
+- 本地生成 embedding
+
+### Remote
+
+- `Gemini2Embedder`
+- 明确 opt-in
+- 只会发送你显式提供的文本 / data URI / raw bytes
+
+安全边界：
+
+- URI-only 的多媒体 part 不会自动读本地文件再上传。
+
+## Store compatibility guard
+
+`aimem-core` 会把 embedding profile 记录到 store 里，并在写入和语义查询时校验：
+
+- provider
+- model
+- dimension
+
+这样可以防止：
+
+- local `384d` 和 remote `768d` 混在一个库里
+- 同维度但不同模型静默混用
 
 ## 用法总览
 
@@ -94,6 +143,16 @@ async fn main() -> anyhow::Result<()> {
     db.insert_drawer(&drawer, None).await?;
     Ok(())
 }
+```
+
+你也可以用 builder 风格继续补字段：
+
+```rust,no_run
+use aimem_core::prelude::*;
+
+let drawer = Drawer::new("id", "wing", "room", "content", "agent")
+    .with_source_file("README.md")
+    .with_chunk_index(3);
 ```
 
 ### 3. 只做关键词搜索（离线、无 embedding、最稳）
@@ -151,6 +210,31 @@ async fn main() -> anyhow::Result<()> {
     assert!(!hits.is_empty());
     Ok(())
 }
+```
+
+### 4.1 手工写入时的 profile-aware API
+
+如果你自己生成了 embedding，并且想把 profile 元数据一起写进 store，用：
+
+```rust,no_run
+use std::sync::Arc;
+use aimem_core::prelude::*;
+
+# #[tokio::main]
+# async fn main() -> anyhow::Result<()> {
+let db = AimemDb::memory().await?;
+let embedder = Arc::new(LocalEmbedder::new()?);
+let embedding = embedder.embed_one("hello memory").await?;
+
+let drawer = Drawer::new("d1", "demo", "general", "hello memory", "example");
+db.insert_drawer_with_profile(
+    &drawer,
+    Some(&embedding),
+    embedder.provider_name(),
+    embedder.model_name(),
+).await?;
+# Ok(())
+# }
 ```
 
 ### 5. 挖掘一个项目目录
@@ -224,6 +308,25 @@ async fn main() -> anyhow::Result<()> {
 }
 ```
 
+### 7.1 直接 filing 文本
+
+```rust,no_run
+use std::sync::Arc;
+use aimem_core::prelude::*;
+
+# #[tokio::main]
+# async fn main() -> anyhow::Result<()> {
+let cfg = Config::load()?;
+let db = AimemDb::open(&cfg.db_path).await?;
+let embedder = Arc::new(LocalEmbedder::new()?);
+let stack = MemoryStack::new(db, embedder, &cfg);
+
+let id = stack.file_text("demo_app", "notes", "remember this", "example").await?;
+println!("{id}");
+# Ok(())
+# }
+```
+
 ### 8. 知识图谱
 
 ```rust,no_run
@@ -263,4 +366,6 @@ cargo test -p aimem-core --test performance_smoke -- --ignored
 - `AimemDb::open()` 会自动建表。
 - `Miner::new(db, None)` / `ConvoMiner::new(db, None)` 适合离线、无模型、先把文本塞进去。
 - 没有 embedding 的 drawer 依然可以被 `keyword_search()` 找到，但不会出现在 `vector_search()` 结果里。
+- `AimemDb::embedding_profile()` 可以查看当前库已经绑定到什么 embedding profile。
+- `aimem-core` 会拒绝 provider / model / dimension 不匹配的语义写入与查询。
 - 如果你要做服务端封装，优先把 `AimemDb` clone 出去复用；它是轻量句柄。

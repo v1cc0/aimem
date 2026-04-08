@@ -8,13 +8,31 @@ Inspired by https://github.com/milla-jovovich/mempalace
 
 Small solo project. Issues are welcome.
 
-Rust-first local memory infrastructure for AI agents.
+AiMem is Rust-first local memory infrastructure for AI agents.
 
-`aimem` keeps long-term memory in a single Turso database and exposes three layers:
+It stores long-term memory in a single Turso database and exposes:
 
 - `aimem-core` — storage, mining, search, memory layers, knowledge graph
 - `aimem` — CLI
 - `aimem-mcp` — stdio MCP server
+
+## What 0.3.x added
+
+The `0.3.x` line introduced the main architectural improvements that were missing from the old docs:
+
+- async embedding flow
+- `LocalEmbedder` and opt-in `Gemini2Embedder`
+- multimodal `ContentPart`
+- embedding store profile tracking:
+  - provider
+  - model
+  - dimension
+- profile guards that reject mixed embedding stores
+- `Drawer` helper API
+- `MemoryStack::file_text(...)`
+- CLI / MCP status now showing embedding profile
+- tighter extractor heuristics with multilingual regression tests
+- CI dependency auditing via `cargo audit`
 
 ## Workspace layout
 
@@ -27,36 +45,73 @@ crates/
 
 ## Highlights
 
-- local-only storage with Turso
+- one local Turso DB file: `~/.aimem/aimem.db`
 - keyword + semantic retrieval
 - project mining and conversation mining
 - 4-layer wake-up memory stack
+- multimodal content model
+- local embedder by default
+- opt-in remote Gemini embedding
 - MCP integration for agent tooling
 - no Python runtime in this repository
 
 ## Architecture
 
 ```text
-project files / chat exports
-           │
-           ▼
-    aimem CLI / MCP tools
-           │
-           ▼
-        aimem-core
-   ┌────────┼────────┐
-   │        │        │
-   ▼        ▼        ▼
- mining   search   memory layers
-   │        │        │
-   └────────┴────────┘
-           │
-           ▼
-   ~/.aimem/aimem.db
-     (single Turso DB)
+project files / chat exports / manual filing
+                  │
+                  ▼
+           aimem CLI / MCP
+                  │
+                  ▼
+               aimem-core
+      ┌────────────┼────────────┐
+      │            │            │
+      ▼            ▼            ▼
+    mining       search      memory stack
+      │            │            │
+      └────────────┴────────────┘
+                  │
+                  ▼
+          ~/.aimem/aimem.db
+     + embedding profile metadata
 ```
 
-The shape is intentionally simple: one local DB file, thin CLI/MCP frontends, and reusable logic in `aimem-core`.
+The shape is intentionally simple: one DB file, thin frontends, reusable core logic.
+
+## Embedding modes
+
+AiMem currently supports two embedding modes:
+
+### 1. Local
+
+- `LocalEmbedder`
+- backed by `fastembed`
+- default recommendation
+- keeps embedding generation local
+
+### 2. Remote
+
+- `Gemini2Embedder`
+- explicit opt-in through CLI/API
+- sends only data you explicitly provide
+
+Important safety boundary:
+
+- URI-only multimodal parts are **not** automatically read from local disk and uploaded.
+- Remote embedding requires explicit text, data URI, or raw bytes.
+
+## Store compatibility guard
+
+AiMem records embedding profile metadata inside the store and rejects mixed stores.
+
+That means writes and semantic queries are checked against:
+
+- provider
+- model
+- dimension
+
+So switching from local `384d` embeddings to remote `768d` embeddings in the same DB will fail fast instead of silently corrupting search quality.
 
 ## API stability
 
@@ -71,33 +126,10 @@ use aimem_core::prelude::*;
 ### 2. Explicit root imports
 
 ```rust
-use aimem_core::{AimemDb, Config, ConvoMiner, Drawer, Embedder, KnowledgeGraph, MemoryStack, Miner, SearchResult, Searcher, Triple};
+use aimem_core::{AimemDb, Config, ConvoMiner, Drawer, LocalEmbedder, MemoryStack, Miner, Searcher};
 ```
 
-Deep module imports such as `aimem_core::miner::...` or `aimem_core::extractor::...` are a wider surface than new integrations should depend on. New code should bias toward `prelude` or the root types:
-
-- `Config`
-- `AimemDb`
-- `Embedder`
-- `Miner`
-- `ConvoMiner`
-- `Searcher`
-- `KnowledgeGraph`
-- `MemoryStack`
-- core data types like `Drawer`, `SearchResult`, `Triple`
-
-## Build
-
-```bash
-cargo build
-```
-
-## Test
-
-```bash
-cargo test
-cargo test -p aimem-core --test performance_smoke -- --ignored
-```
+New integrations should avoid depending on deep internal module paths when root exports or `prelude` are enough.
 
 ## Install
 
@@ -117,6 +149,19 @@ Library:
 
 ```bash
 cargo add aimem-core
+```
+
+## Build
+
+```bash
+cargo build
+```
+
+## Test
+
+```bash
+cargo test
+cargo test -p aimem-core --test performance_smoke -- --ignored
 ```
 
 ## Quick start
@@ -149,7 +194,14 @@ aimem search "why did we choose Turso?"
 aimem wake-up
 ```
 
-Minimal Rust embedding:
+For remote embedding:
+
+```bash
+export GEMINI_API_KEY=...
+aimem search "why did we choose Turso?" --gemini-key "$GEMINI_API_KEY"
+```
+
+## Minimal Rust example
 
 ```rust
 use aimem_core::prelude::*;
@@ -187,15 +239,19 @@ aimem search "vector search"
 aimem mine /path/to/project --no-embed
 ```
 
-Project mining expects an `aimem.yaml` file in the target project root.
+Useful notes:
+
+- `aimem status` now shows the current embedding profile stored in the DB.
+- `aimem search` and `aimem mine` can use `--gemini-key` or `GEMINI_API_KEY` for opt-in remote embedding.
+- project mining expects an `aimem.yaml` file in the target project root.
 
 ## MCP
 
 ```bash
-cargo run -p aimem-mcp
+aimem-mcp
 ```
 
-Supported tools in the current MVP:
+Current tools:
 
 - `aimem_status`
 - `aimem_list_wings`
@@ -206,6 +262,8 @@ Supported tools in the current MVP:
 - `aimem_check_duplicate`
 - `aimem_add_drawer`
 - `aimem_delete_drawer`
+
+`aimem_status` now also reports the current embedding profile.
 
 ## Config
 
@@ -218,6 +276,7 @@ Environment overrides:
 
 - `AIMEM_DB_PATH`
 - `AIMEM_IDENTITY_PATH`
+- `GEMINI_API_KEY`
 
 ## Repository
 
