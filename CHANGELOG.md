@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-04-09
+
+### Added
+- Added async embedding support with `LocalEmbedder` and opt-in `Gemini2Embedder`.
+- Added multimodal `ContentPart` support plus helper APIs like `Drawer::new(...)`, `Drawer::multimodal(...)`, and `MemoryStack::file_text(...)`.
+- Added embedding store metadata/profile tracking (`provider` / `model` / `dimension`) and surfaced it in CLI/MCP status output.
+- Added CI dependency auditing with `cargo audit`.
+
+### Changed
+- Updated mining, conversation import, search, MCP, examples, and docs to use the new async embedding flow.
+- Tightened extractor heuristics and added multilingual regression coverage for a narrower, safer EN/ZH/CAN/JP rule subset.
+
+### Fixed
+- Prevented remote embedding from automatically reading local files from URI-only parts.
+- Prevented mixed embedding stores by rejecting provider/model/dimension mismatches at write and query time.
+
+
 ## [0.2.1] - 2026-04-08
 
 ### Added

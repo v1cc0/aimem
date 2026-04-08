@@ -158,16 +158,14 @@ use aimem_core::prelude::*;
 async fn main() -> anyhow::Result<()> {
     let db = AimemDb::open("./aimem.db").await?;
 
-    let drawer = Drawer {
-        id: "drawer_demo_001".into(),
-        wing: "demo_app".into(),
-        room: "backend".into(),
-        content: "We chose Turso so storage and retrieval stay local.".into(),
-        source_file: Some("DECISIONS.md".into()),
-        chunk_index: 0,
-        added_by: "example".into(),
-        filed_at: chrono::Utc::now().to_rfc3339(),
-    };
+    let drawer = Drawer::new(
+        "drawer_demo_001",
+        "demo_app",
+        "backend",
+        "We chose Turso so storage and retrieval stay local.",
+        "example",
+    )
+    .with_source_file("DECISIONS.md");
 
     db.insert_drawer(&drawer, None).await?;
 
