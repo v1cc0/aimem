@@ -30,6 +30,7 @@ AiMem 是面向 AI agent 的 Rust-first 本地记忆基础设施。
 - 阻止混库的 profile guard
 - `Drawer` helper API
 - `MemoryStack::file_text(...)`
+- `MemoryStack::file_drawer_with_id(...)`
 - CLI / MCP status 暴露 embedding profile
 - 收窄后的 extractor 与多语言回归测试
 - CI 中的 `cargo audit`

@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-04-12
+
+### Added
+- Added `MemoryStack::file_drawer_with_id(...)` so callers can file drawers with a stable caller-supplied ID instead of always using the timestamp-derived ID from `file_drawer(...)`.
+- Added optional `source_file` and `chunk_index` metadata on that filing path, which is useful for attachment-style chunk ingestion from downstream apps.
+
+### Changed
+- Kept `MemoryStack::file_drawer(...)` backward compatible by delegating internally to the new stable-ID filing path.
+- Added integration coverage proving stable-ID filing is idempotent and preserves drawer metadata.
+
 ## [0.3.3] - 2026-04-09
 
 ### Changed

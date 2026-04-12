@@ -31,6 +31,7 @@ Current `aimem-core` includes:
 - profile guards against mixed stores
 - `Drawer` helper API
 - `MemoryStack::file_text(...)`
+- `MemoryStack::file_drawer_with_id(...)`
 - tighter extractor heuristics with multilingual regression tests
 
 ## Install
@@ -101,6 +102,37 @@ use aimem_core::prelude::*;
 let drawer = Drawer::new("id", "wing", "room", "content", "agent")
     .with_source_file("README.md")
     .with_chunk_index(3);
+```
+
+Stable-ID filing through `MemoryStack`:
+
+```rust,no_run
+use std::sync::Arc;
+use aimem_core::prelude::*;
+
+# #[tokio::main]
+# async fn main() -> anyhow::Result<()> {
+let cfg = Config::load()?;
+let db = AimemDb::open(&cfg.db_path).await?;
+let embedder = Arc::new(LocalEmbedder::new()?);
+let stack = MemoryStack::new(db, embedder, &cfg);
+
+let inserted = stack
+    .file_drawer_with_id(
+        "attachment.chunk.001",
+        "attachments",
+        "user-123",
+        "Attachment chunk body".to_string(),
+        vec![ContentPart::text("Attachment chunk body")],
+        Some("report.pdf"),
+        1,
+        "example",
+    )
+    .await?;
+
+println!("inserted={inserted}");
+# Ok(())
+# }
 ```
 
 For multimodal drawers:

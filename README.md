@@ -34,6 +34,7 @@ The `0.3.x` line introduced the main architectural improvements that were missin
 - profile guards that reject mixed embedding stores
 - `Drawer` helper API
 - `MemoryStack::file_text(...)`
+- `MemoryStack::file_drawer_with_id(...)`
 - CLI / MCP status now showing embedding profile
 - tighter extractor heuristics with multilingual regression tests
 - CI dependency auditing via `cargo audit`
