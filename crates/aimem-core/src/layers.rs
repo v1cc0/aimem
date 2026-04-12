@@ -266,6 +266,28 @@ impl MemoryStack {
         parts: Vec<crate::types::ContentPart>,
         agent: &str,
     ) -> Result<String, LayerError> {
+        let now = chrono::Utc::now().to_rfc3339();
+        let digest = md5::compute(format!("{wing}{room}{content}{now}").as_bytes());
+        let id = format!("mem_{wing}_{digest:x}");
+
+        self.file_drawer_with_id(&id, wing, room, content, parts, None, 0, agent)
+            .await?;
+        Ok(id)
+    }
+
+    /// File a new memory with a caller-supplied stable drawer ID and optional metadata.
+    /// Returns `true` when a new drawer row was inserted and `false` when the ID already existed.
+    pub async fn file_drawer_with_id(
+        &self,
+        id: &str,
+        wing: &str,
+        room: &str,
+        content: String,
+        parts: Vec<crate::types::ContentPart>,
+        source_file: Option<&str>,
+        chunk_index: i64,
+        agent: &str,
+    ) -> Result<bool, LayerError> {
         let parts_for_embedding = if parts.is_empty() {
             vec![crate::types::ContentPart::text(content.clone())]
         } else {
@@ -283,14 +305,16 @@ impl MemoryStack {
         };
 
         let now = chrono::Utc::now().to_rfc3339();
-        let digest = md5::compute(format!("{wing}{room}{content}{now}").as_bytes());
-        let id = format!("mem_{wing}_{digest:x}");
-
-        let drawer = Drawer::new(id.clone(), wing, room, content, agent)
+        let mut drawer = Drawer::new(id.to_string(), wing, room, content, agent)
             .with_parts(parts)
+            .with_chunk_index(chunk_index)
             .with_filed_at(now);
+        if let Some(source_file) = source_file {
+            drawer = drawer.with_source_file(source_file);
+        }
 
-        if let (Some(embedding), Some(embedder)) = (embedding.as_deref(), self.searcher.embedder())
+        let inserted = if let (Some(embedding), Some(embedder)) =
+            (embedding.as_deref(), self.searcher.embedder())
         {
             self.db
                 .insert_drawer_with_profile(
@@ -299,11 +323,11 @@ impl MemoryStack {
                     embedder.provider_name(),
                     embedder.model_name(),
                 )
-                .await?;
+                .await?
         } else {
-            self.db.insert_drawer(&drawer, embedding.as_deref()).await?;
-        }
-        Ok(id)
+            self.db.insert_drawer(&drawer, embedding.as_deref()).await?
+        };
+        Ok(inserted)
     }
 
     /// File a plain-text memory without manually constructing a parts vector.
