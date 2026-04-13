@@ -16,6 +16,8 @@ pub enum SearchError {
     Db(#[from] DbError),
     #[error("embed error: {0}")]
     Embed(#[from] crate::embedder::EmbedError),
+    #[error("embedder returned {actual} vectors for {expected} inputs")]
+    EmbedBatchSizeMismatch { expected: usize, actual: usize },
     #[error("semantic search requires an embedder")]
     EmbedderUnavailable,
     #[error("turso error: {0}")]

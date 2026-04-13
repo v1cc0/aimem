@@ -497,6 +497,15 @@ impl AimemDb {
         Ok(rows_affected > 0)
     }
 
+    /// Check whether a drawer ID already exists.
+    pub async fn drawer_exists(&self, id: &str) -> DbResult<bool> {
+        let conn = self.conn()?;
+        let mut rows = conn
+            .query("SELECT 1 FROM drawers WHERE id = ?1 LIMIT 1", [id])
+            .await?;
+        Ok(rows.next().await?.is_some())
+    }
+
     /// Check if a source file has already been mined.
     pub async fn source_already_mined(&self, source_file: &str) -> DbResult<bool> {
         let conn = self.conn()?;

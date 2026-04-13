@@ -32,6 +32,7 @@ CLI 在 `aimem-cli`，MCP server 在 `aimem-mcp`。
 - `Drawer` helper API
 - `MemoryStack::file_text(...)`
 - `MemoryStack::file_drawer_with_id(...)`
+- `MemoryStack::file_drawers_with_ids(...)`
 - 收窄后的 extractor 与多语言回归测试
 
 ## 安装
@@ -134,6 +135,52 @@ println!("inserted={inserted}");
 # Ok(())
 # }
 ```
+
+如果你已经拿到一组彼此相关的稳定 ID drawer（例如同一个附件的
+summary + chunk drawers），可以一次性批量 filing：
+
+```rust,no_run
+use std::sync::Arc;
+use aimem_core::prelude::*;
+
+# #[tokio::main]
+# async fn main() -> anyhow::Result<()> {
+let cfg = Config::load()?;
+let db = AimemDb::open(&cfg.db_path).await?;
+let embedder = Arc::new(LocalEmbedder::new()?);
+let stack = MemoryStack::new(db, embedder, &cfg);
+
+let inserted = stack
+    .file_drawers_with_ids(&[
+        DrawerFilingRequest::new(
+            "attachment.summary.001",
+            "attachments",
+            "user-123",
+            "Attachment summary".to_string(),
+            "example",
+        )
+        .with_parts(vec![ContentPart::text("Attachment summary")])
+        .with_source_file("report.pdf"),
+        DrawerFilingRequest::new(
+            "attachment.chunk.001",
+            "attachments",
+            "user-123",
+            "Attachment chunk 1".to_string(),
+            "example",
+        )
+        .with_parts(vec![ContentPart::text("Attachment chunk 1")])
+        .with_source_file("report.pdf")
+        .with_chunk_index(1),
+    ])
+    .await?;
+
+println!("inserted={inserted:?}");
+# Ok(())
+# }
+```
+
+AiMem 会在 embedding 之前先检查稳定 ID 是否已存在，因此同一批次重试时，
+不会再为已经入库的 drawer 额外消耗一次远程 embedding 调用。
 
 多模态 drawer：
 

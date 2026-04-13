@@ -49,13 +49,17 @@ pub use knowledge::KnowledgeGraph;
 pub use layers::MemoryStack;
 pub use miner::Miner;
 pub use search::Searcher;
-pub use types::{ContentPart, Drawer, DrawerMeta, Entity, RoomNode, SearchResult, Triple, Tunnel};
+pub use types::{
+    ContentPart, Drawer, DrawerFilingRequest, DrawerMeta, Entity, RoomNode, SearchResult, Triple,
+    Tunnel,
+};
 
 /// Curated high-level imports for typical AiMem integrations.
 pub mod prelude {
     pub use crate::{
-        AimemDb, AimemGraph, Config, ContentPart, ConvoMineStats, ConvoMiner, Drawer, DrawerMeta,
-        Embedder, EmbeddingStoreProfile, Entity, Gemini2Embedder, KnowledgeGraph, LocalEmbedder,
-        MemoryStack, Miner, RoomNode, SearchResult, Searcher, Triple, Tunnel,
+        AimemDb, AimemGraph, Config, ContentPart, ConvoMineStats, ConvoMiner, Drawer,
+        DrawerFilingRequest, DrawerMeta, Embedder, EmbeddingStoreProfile, Entity, Gemini2Embedder,
+        KnowledgeGraph, LocalEmbedder, MemoryStack, Miner, RoomNode, SearchResult, Searcher,
+        Triple, Tunnel,
     };
 }

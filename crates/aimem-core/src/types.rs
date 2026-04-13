@@ -124,6 +124,68 @@ impl Drawer {
     }
 }
 
+/// Caller-supplied filing request for one drawer.
+///
+/// This is useful when the caller wants to:
+/// - preserve a stable external ID
+/// - batch related drawers into one embedding call
+/// - attach source metadata such as `source_file` / `chunk_index`
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DrawerFilingRequest {
+    pub id: String,
+    pub wing: String,
+    pub room: String,
+    pub content: String,
+    #[serde(default)]
+    pub parts: Vec<ContentPart>,
+    pub source_file: Option<String>,
+    pub chunk_index: i64,
+    pub added_by: String,
+    pub filed_at: Option<String>,
+}
+
+impl DrawerFilingRequest {
+    pub fn new(
+        id: impl Into<String>,
+        wing: impl Into<String>,
+        room: impl Into<String>,
+        content: impl Into<String>,
+        added_by: impl Into<String>,
+    ) -> Self {
+        Self {
+            id: id.into(),
+            wing: wing.into(),
+            room: room.into(),
+            content: content.into(),
+            parts: Vec::new(),
+            source_file: None,
+            chunk_index: 0,
+            added_by: added_by.into(),
+            filed_at: None,
+        }
+    }
+
+    pub fn with_parts(mut self, parts: Vec<ContentPart>) -> Self {
+        self.parts = parts;
+        self
+    }
+
+    pub fn with_source_file(mut self, source_file: impl Into<String>) -> Self {
+        self.source_file = Some(source_file.into());
+        self
+    }
+
+    pub fn with_chunk_index(mut self, chunk_index: i64) -> Self {
+        self.chunk_index = chunk_index;
+        self
+    }
+
+    pub fn with_filed_at(mut self, filed_at: impl Into<String>) -> Self {
+        self.filed_at = Some(filed_at.into());
+        self
+    }
+}
+
 /// Lightweight metadata-only view of a drawer (no content).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DrawerMeta {

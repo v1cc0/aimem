@@ -24,6 +24,7 @@
 - `Drawer` helper API
 - `MemoryStack::file_text(...)`
 - `MemoryStack::file_drawer_with_id(...)`
+- `MemoryStack::file_drawers_with_ids(...)`
 - extractor の回帰テスト強化
 
 ## インストール
@@ -98,6 +99,52 @@ println!("inserted={inserted}");
 # Ok(())
 # }
 ```
+
+関連する stable-ID drawer 群（たとえば同じ添付ファイルの summary + chunk
+drawers）がすでにあるなら、1 回でまとめて filing できます：
+
+```rust,no_run
+use std::sync::Arc;
+use aimem_core::prelude::*;
+
+# #[tokio::main]
+# async fn main() -> anyhow::Result<()> {
+let cfg = Config::load()?;
+let db = AimemDb::open(&cfg.db_path).await?;
+let embedder = Arc::new(LocalEmbedder::new()?);
+let stack = MemoryStack::new(db, embedder, &cfg);
+
+let inserted = stack
+    .file_drawers_with_ids(&[
+        DrawerFilingRequest::new(
+            "attachment.summary.001",
+            "attachments",
+            "user-123",
+            "Attachment summary".to_string(),
+            "example",
+        )
+        .with_parts(vec![ContentPart::text("Attachment summary")])
+        .with_source_file("report.pdf"),
+        DrawerFilingRequest::new(
+            "attachment.chunk.001",
+            "attachments",
+            "user-123",
+            "Attachment chunk 1".to_string(),
+            "example",
+        )
+        .with_parts(vec![ContentPart::text("Attachment chunk 1")])
+        .with_source_file("report.pdf")
+        .with_chunk_index(1),
+    ])
+    .await?;
+
+println!("inserted={inserted:?}");
+# Ok(())
+# }
+```
+
+AiMem は embedding 前に既存 stable ID を確認するため、同じバッチを
+再試行しても、すでに保存済みの drawer に対して余計な remote embedding 呼び出しを行いません。
 
 ## 直接 text を filing
 

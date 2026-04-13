@@ -7,7 +7,7 @@
 //! L3  Deep Search     (unlimited)     Turso vector_distance_cos semantic search
 //! ```
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::sync::Arc;
 
@@ -18,7 +18,7 @@ use crate::{
     db::{AimemDb, DbError},
     embedder::Embedder,
     search::{SearchError, Searcher},
-    types::Drawer,
+    types::{Drawer, DrawerFilingRequest},
 };
 
 #[derive(Debug, Error)]
@@ -288,46 +288,100 @@ impl MemoryStack {
         chunk_index: i64,
         agent: &str,
     ) -> Result<bool, LayerError> {
-        let parts_for_embedding = if parts.is_empty() {
-            vec![crate::types::ContentPart::text(content.clone())]
-        } else {
-            parts.clone()
-        };
+        let request = build_filing_request(
+            id,
+            wing,
+            room,
+            content,
+            parts,
+            source_file,
+            chunk_index,
+            agent,
+        );
+        let mut results = self.file_drawers_with_ids(&[request]).await?;
+        Ok(results.pop().unwrap_or(false))
+    }
 
-        let embedding = if let Some(ref emb) = self.searcher.embedder() {
-            let vecs = emb
-                .embed(&[parts_for_embedding])
-                .await
-                .map_err(SearchError::from)?;
-            vecs.into_iter().next()
+    /// File multiple stable-ID drawers in one embedding batch.
+    ///
+    /// This is useful for attachment-style ingestion where a caller has a set of
+    /// related chunks (for example one file's summary + chunk drawers) and wants
+    /// to avoid one remote embedding request per drawer.
+    ///
+    /// The returned vector is aligned with `requests`: `true` means a new drawer
+    /// row was inserted, `false` means the stable ID already existed.
+    ///
+    /// Existing IDs are checked before embedding so retries do not spend another
+    /// remote embedding call on already-filed drawers.
+    pub async fn file_drawers_with_ids(
+        &self,
+        requests: &[DrawerFilingRequest],
+    ) -> Result<Vec<bool>, LayerError> {
+        if requests.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let mut results = vec![false; requests.len()];
+        let mut pending_indexes = Vec::new();
+        let mut pending_parts = Vec::new();
+        let mut seen_ids = HashSet::new();
+
+        for (index, request) in requests.iter().enumerate() {
+            if !seen_ids.insert(request.id.clone()) {
+                continue;
+            }
+            if self.db.drawer_exists(&request.id).await? {
+                continue;
+            }
+            pending_indexes.push(index);
+            pending_parts.push(parts_for_embedding(request));
+        }
+
+        let embedder = self.searcher.embedder();
+        let embeddings = if let Some(ref embedder) = embedder {
+            if pending_parts.is_empty() {
+                Some(Vec::new())
+            } else {
+                let embeddings = embedder
+                    .embed(&pending_parts)
+                    .await
+                    .map_err(SearchError::from)?;
+                if embeddings.len() != pending_parts.len() {
+                    return Err(SearchError::EmbedBatchSizeMismatch {
+                        expected: pending_parts.len(),
+                        actual: embeddings.len(),
+                    }
+                    .into());
+                }
+                Some(embeddings)
+            }
         } else {
             None
         };
 
-        let now = chrono::Utc::now().to_rfc3339();
-        let mut drawer = Drawer::new(id.to_string(), wing, room, content, agent)
-            .with_parts(parts)
-            .with_chunk_index(chunk_index)
-            .with_filed_at(now);
-        if let Some(source_file) = source_file {
-            drawer = drawer.with_source_file(source_file);
+        let default_filed_at = chrono::Utc::now().to_rfc3339();
+
+        for (pending_offset, request_index) in pending_indexes.into_iter().enumerate() {
+            let request = &requests[request_index];
+            let drawer = drawer_from_request(request, &default_filed_at);
+            let inserted = if let (Some(embedder), Some(embeddings)) =
+                (embedder.as_ref(), embeddings.as_ref())
+            {
+                self.db
+                    .insert_drawer_with_profile(
+                        &drawer,
+                        Some(embeddings[pending_offset].as_slice()),
+                        embedder.provider_name(),
+                        embedder.model_name(),
+                    )
+                    .await?
+            } else {
+                self.db.insert_drawer(&drawer, None).await?
+            };
+            results[request_index] = inserted;
         }
 
-        let inserted = if let (Some(embedding), Some(embedder)) =
-            (embedding.as_deref(), self.searcher.embedder())
-        {
-            self.db
-                .insert_drawer_with_profile(
-                    &drawer,
-                    Some(embedding),
-                    embedder.provider_name(),
-                    embedder.model_name(),
-                )
-                .await?
-        } else {
-            self.db.insert_drawer(&drawer, embedding.as_deref()).await?
-        };
-        Ok(inserted)
+        Ok(results)
     }
 
     /// File a plain-text memory without manually constructing a parts vector.
@@ -369,4 +423,55 @@ impl MemoryStack {
             "rooms": rooms.into_iter().map(|(r, c)| serde_json::json!({"room": r, "count": c})).collect::<Vec<_>>(),
         }))
     }
+}
+
+fn build_filing_request(
+    id: &str,
+    wing: &str,
+    room: &str,
+    content: String,
+    parts: Vec<crate::types::ContentPart>,
+    source_file: Option<&str>,
+    chunk_index: i64,
+    agent: &str,
+) -> DrawerFilingRequest {
+    let mut request = DrawerFilingRequest::new(id, wing, room, content, agent)
+        .with_parts(parts)
+        .with_chunk_index(chunk_index);
+    if let Some(source_file) = source_file {
+        request = request.with_source_file(source_file);
+    }
+    request
+}
+
+fn parts_for_embedding(request: &DrawerFilingRequest) -> Vec<crate::types::ContentPart> {
+    if request.parts.is_empty() {
+        vec![crate::types::ContentPart::text(request.content.clone())]
+    } else {
+        request.parts.clone()
+    }
+}
+
+fn drawer_from_request(request: &DrawerFilingRequest, default_filed_at: &str) -> Drawer {
+    let mut drawer = Drawer::new(
+        request.id.clone(),
+        request.wing.clone(),
+        request.room.clone(),
+        request.content.clone(),
+        request.added_by.clone(),
+    )
+    .with_parts(request.parts.clone())
+    .with_chunk_index(request.chunk_index)
+    .with_filed_at(
+        request
+            .filed_at
+            .clone()
+            .unwrap_or_else(|| default_filed_at.to_string()),
+    );
+
+    if let Some(source_file) = request.source_file.as_deref() {
+        drawer = drawer.with_source_file(source_file);
+    }
+
+    drawer
 }

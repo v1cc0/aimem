@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Added `DrawerFilingRequest` plus `MemoryStack::file_drawers_with_ids(...)` so callers can batch related stable-ID drawers into one embedding call while still preserving `source_file` / `chunk_index` metadata.
+- Added `AimemDb::drawer_exists(...)` as a small but useful stable-ID existence probe for higher-level ingestion flows.
+
+### Changed
+- `MemoryStack::file_drawer_with_id(...)` now delegates to the new batched filing path, keeping the old API stable while reusing the same embedding / insert logic.
+- Batched stable-ID filing checks for existing IDs before embedding, so retries and replays do not waste another remote embedding request on drawers that are already stored.
+
+### Tests
+- Added integration coverage proving batched stable-ID filing uses one embedding call for related drawers and skips existing IDs before embedding.
+
 ## [0.3.4] - 2026-04-12
 
 ### Added

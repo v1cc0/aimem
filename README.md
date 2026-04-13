@@ -35,6 +35,7 @@ The `0.3.x` line introduced the main architectural improvements that were missin
 - `Drawer` helper API
 - `MemoryStack::file_text(...)`
 - `MemoryStack::file_drawer_with_id(...)`
+- `MemoryStack::file_drawers_with_ids(...)`
 - CLI / MCP status now showing embedding profile
 - tighter extractor heuristics with multilingual regression tests
 - CI dependency auditing via `cargo audit`
@@ -91,6 +92,11 @@ That means writes and semantic queries are checked against:
 - dimension
 
 So switching from local `384d` embeddings to remote `768d` embeddings in the same DB fails fast instead of silently degrading retrieval quality.
+
+For attachment-style ingestion, AiMem can now batch a caller-supplied set of
+stable-ID drawers through `MemoryStack::file_drawers_with_ids(...)`. That lets
+downstream apps group one file's summary + chunk drawers into one embedding call
+and skip already-filed IDs before embedding on retries.
 
 ## Install
 

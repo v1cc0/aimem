@@ -32,6 +32,7 @@ Current `aimem-core` includes:
 - `Drawer` helper API
 - `MemoryStack::file_text(...)`
 - `MemoryStack::file_drawer_with_id(...)`
+- `MemoryStack::file_drawers_with_ids(...)`
 - tighter extractor heuristics with multilingual regression tests
 
 ## Install
@@ -134,6 +135,52 @@ println!("inserted={inserted}");
 # Ok(())
 # }
 ```
+
+When you already have a related set of stable-ID drawers (for example one
+attachment summary plus chunk drawers), batch them in one call:
+
+```rust,no_run
+use std::sync::Arc;
+use aimem_core::prelude::*;
+
+# #[tokio::main]
+# async fn main() -> anyhow::Result<()> {
+let cfg = Config::load()?;
+let db = AimemDb::open(&cfg.db_path).await?;
+let embedder = Arc::new(LocalEmbedder::new()?);
+let stack = MemoryStack::new(db, embedder, &cfg);
+
+let inserted = stack
+    .file_drawers_with_ids(&[
+        DrawerFilingRequest::new(
+            "attachment.summary.001",
+            "attachments",
+            "user-123",
+            "Attachment summary".to_string(),
+            "example",
+        )
+        .with_parts(vec![ContentPart::text("Attachment summary")])
+        .with_source_file("report.pdf"),
+        DrawerFilingRequest::new(
+            "attachment.chunk.001",
+            "attachments",
+            "user-123",
+            "Attachment chunk 1".to_string(),
+            "example",
+        )
+        .with_parts(vec![ContentPart::text("Attachment chunk 1")])
+        .with_source_file("report.pdf")
+        .with_chunk_index(1),
+    ])
+    .await?;
+
+println!("inserted={inserted:?}");
+# Ok(())
+# }
+```
+
+AiMem checks existing stable IDs before embedding, so retrying the same batch
+does not spend another remote embedding call on drawers that are already stored.
 
 For multimodal drawers:
 
