@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.3.6] - 2026-04-14
+
+### Changed
+- Split `AimemDb` into explicit read and write paths internally: query-heavy search / graph / knowledge reads now use a query-only Turso connection, while writes use retried concurrent write transactions.
+- Upgraded the workspace Turso stack from `0.6.0-pre.15` to `0.6.0-pre.17`.
+- Added retry handling for `BEGIN CONCURRENT` startup contention, not just commit conflicts, which reduces brittle failures during short write bursts.
+- Added structured Turso conflict observability (`aimem::db`) with operation label, retry count, elapsed time, and normalized conflict kind.
+
+### Tests
+- Added regression coverage for query-only read connections and Turso conflict-kind classification.
+
 ## [0.3.5] - 2026-04-14
 
 ### Added
