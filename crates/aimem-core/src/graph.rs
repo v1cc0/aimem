@@ -30,7 +30,7 @@ impl AimemGraph {
 
     /// Build full room→wings mapping from the memory store.
     pub async fn build(&self) -> Result<(Vec<RoomNode>, Vec<Tunnel>), GraphError> {
-        let conn = self.db.conn()?;
+        let conn = self.db.read_conn()?;
         let mut room_wings: HashMap<String, (HashSet<String>, i64)> = HashMap::new();
 
         let mut rows = conn

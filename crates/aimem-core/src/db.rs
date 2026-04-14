@@ -42,7 +42,9 @@
 //! # }
 //! ```
 
+use std::future::Future;
 use std::path::Path;
+use std::time::Instant;
 
 use thiserror::Error;
 use turso::{Builder, Connection, Database};
@@ -138,12 +140,16 @@ CREATE INDEX IF NOT EXISTS idx_triples_predicate ON triples(predicate);
 CREATE INDEX IF NOT EXISTS idx_triples_valid     ON triples(valid_from, valid_to);
 ";
 
+const DB_BUSY_TIMEOUT_MS: u64 = 5_000;
+const DB_WRITE_RETRY_LIMIT: usize = 8;
+
 /// Shared Turso database handle.
 ///
 /// Clone is cheap — the underlying `Database` is `Arc`-wrapped.
 #[derive(Clone)]
 pub struct AimemDb {
     db: Database,
+    read_conn: Connection,
 }
 
 impl std::fmt::Debug for AimemDb {
@@ -162,27 +168,58 @@ impl AimemDb {
 
         let path_str = path.to_string_lossy();
         let db = Builder::new_local(path_str.as_ref()).build().await?;
-        let aimem_db = Self { db };
-        aimem_db.migrate().await?;
-        Ok(aimem_db)
+        let bootstrap_conn = db.connect()?;
+        Self::configure_write_conn(&bootstrap_conn).await?;
+        Self::migrate_conn(&bootstrap_conn).await?;
+        let read_conn = db.connect()?;
+        Self::configure_read_conn(&read_conn).await?;
+        Ok(Self { db, read_conn })
     }
 
     /// Open an in-memory DB (for tests).
     pub async fn memory() -> DbResult<Self> {
         let db = Builder::new_local(":memory:").build().await?;
-        let aimem_db = Self { db };
-        aimem_db.migrate().await?;
-        Ok(aimem_db)
+        let bootstrap_conn = db.connect()?;
+        Self::configure_write_conn(&bootstrap_conn).await?;
+        Self::migrate_conn(&bootstrap_conn).await?;
+        let read_conn = db.connect()?;
+        Self::configure_read_conn(&read_conn).await?;
+        Ok(Self { db, read_conn })
     }
 
-    /// Acquire a connection from the database.
+    /// Acquire a write-capable connection from the database.
+    ///
+    /// Kept write-capable for backward compatibility with existing callers.
     pub fn conn(&self) -> DbResult<Connection> {
         Ok(self.db.connect()?)
     }
 
+    pub(crate) fn read_conn(&self) -> DbResult<Connection> {
+        Ok(self.read_conn.clone())
+    }
+
+    async fn configure_write_conn(conn: &Connection) -> DbResult<()> {
+        conn.pragma_update("busy_timeout", DB_BUSY_TIMEOUT_MS)
+            .await?;
+        Self::ensure_mvcc_mode(conn).await?;
+        Ok(())
+    }
+
+    async fn configure_read_conn(conn: &Connection) -> DbResult<()> {
+        conn.pragma_update("busy_timeout", DB_BUSY_TIMEOUT_MS)
+            .await?;
+        conn.pragma_update("query_only", 1).await?;
+        Ok(())
+    }
+
+    async fn ensure_mvcc_mode(conn: &Connection) -> DbResult<()> {
+        let mut rows = conn.query("PRAGMA journal_mode = 'mvcc'", ()).await?;
+        while rows.next().await?.is_some() {}
+        Ok(())
+    }
+
     /// Run schema bootstrap — idempotent (`CREATE TABLE IF NOT EXISTS`).
-    async fn migrate(&self) -> DbResult<()> {
-        let conn = self.conn()?;
+    async fn migrate_conn(conn: &Connection) -> DbResult<()> {
         conn.execute_batch(INIT_SQL).await?;
 
         if let Err(err) = conn
@@ -202,7 +239,7 @@ impl AimemDb {
     }
 
     async fn meta_value(&self, key: &str) -> DbResult<Option<String>> {
-        let conn = self.conn()?;
+        let conn = self.read_conn()?;
         let mut rows = conn
             .query("SELECT value FROM aimem_meta WHERE key = ?1 LIMIT 1", [key])
             .await?;
@@ -213,13 +250,15 @@ impl AimemDb {
     }
 
     async fn set_meta_value(&self, key: &str, value: &str) -> DbResult<()> {
-        let conn = self.conn()?;
-        conn.execute(
-            "INSERT OR REPLACE INTO aimem_meta (key, value) VALUES (?1, ?2)",
-            [key, value],
-        )
-        .await?;
-        Ok(())
+        self.with_concurrent_write("set_meta_value", move |conn| async move {
+            conn.execute(
+                "INSERT OR REPLACE INTO aimem_meta (key, value) VALUES (?1, ?2)",
+                [key, value],
+            )
+            .await?;
+            Ok(())
+        })
+        .await
     }
 
     fn infer_profile_from_dimension(dim: usize) -> Option<(&'static str, &'static str)> {
@@ -228,6 +267,112 @@ impl AimemDb {
             768 => Some((GEMINI_EMBED_PROVIDER, GEMINI_EMBED_MODEL)),
             _ => None,
         }
+    }
+
+    async fn with_concurrent_write<T, F, Fut>(&self, label: &'static str, op: F) -> DbResult<T>
+    where
+        F: Fn(Connection) -> Fut,
+        Fut: Future<Output = DbResult<T>>,
+    {
+        let started_at = Instant::now();
+        for attempt in 0..DB_WRITE_RETRY_LIMIT {
+            let conn = self.conn()?;
+            conn.pragma_update("busy_timeout", DB_BUSY_TIMEOUT_MS)
+                .await?;
+            match conn.execute("BEGIN CONCURRENT", ()).await {
+                Ok(_) => {}
+                Err(err) if is_retryable_turso_write_error(&err) => {
+                    let attempt_num = attempt + 1;
+                    let elapsed_ms = started_at.elapsed().as_millis() as u64;
+                    if attempt_num == DB_WRITE_RETRY_LIMIT {
+                        tracing::warn!(
+                            target: "aimem::db",
+                            op = label,
+                            attempt = attempt_num,
+                            max_attempts = DB_WRITE_RETRY_LIMIT,
+                            elapsed_ms,
+                            kind = turso_write_error_kind(&err),
+                            error = %err,
+                            "AimemDb concurrent write could not start before retry budget was exhausted"
+                        );
+                        return Err(DbError::Turso(err));
+                    }
+                    tracing::warn!(
+                        target: "aimem::db",
+                        op = label,
+                        attempt = attempt_num,
+                        max_attempts = DB_WRITE_RETRY_LIMIT,
+                        elapsed_ms,
+                        kind = turso_write_error_kind(&err),
+                        error = %err,
+                        "AimemDb concurrent write could not start; retrying"
+                    );
+                    tokio::task::yield_now().await;
+                    continue;
+                }
+                Err(err) => return Err(DbError::Turso(err)),
+            }
+
+            match op(conn.clone()).await {
+                Ok(value) => match conn.execute("COMMIT", ()).await {
+                    Ok(_) => {
+                        conn.cacheflush()?;
+                        if attempt > 0 {
+                            tracing::info!(
+                                target: "aimem::db",
+                                op = label,
+                                attempts = attempt + 1,
+                                elapsed_ms = started_at.elapsed().as_millis() as u64,
+                                "AimemDb concurrent write succeeded after retries"
+                            );
+                        }
+                        return Ok(value);
+                    }
+                    Err(err) if is_retryable_turso_write_error(&err) => {
+                        let _ = conn.execute("ROLLBACK", ()).await;
+                        let attempt_num = attempt + 1;
+                        let elapsed_ms = started_at.elapsed().as_millis() as u64;
+                        if attempt_num == DB_WRITE_RETRY_LIMIT {
+                            tracing::warn!(
+                                target: "aimem::db",
+                                op = label,
+                                attempt = attempt_num,
+                                max_attempts = DB_WRITE_RETRY_LIMIT,
+                                elapsed_ms,
+                                kind = turso_write_error_kind(&err),
+                                error = %err,
+                                "AimemDb concurrent write commit kept conflicting until retry budget was exhausted"
+                            );
+                        } else {
+                            tracing::warn!(
+                                target: "aimem::db",
+                                op = label,
+                                attempt = attempt_num,
+                                max_attempts = DB_WRITE_RETRY_LIMIT,
+                                elapsed_ms,
+                                kind = turso_write_error_kind(&err),
+                                error = %err,
+                                "AimemDb concurrent write commit conflicted; retrying"
+                            );
+                        }
+                        tokio::task::yield_now().await;
+                        if attempt_num == DB_WRITE_RETRY_LIMIT {
+                            return Err(DbError::Turso(err));
+                        }
+                    }
+                    Err(err) => {
+                        let _ = conn.execute("ROLLBACK", ()).await;
+                        return Err(DbError::Turso(err));
+                    }
+                },
+                Err(err) => {
+                    let _ = conn.execute("ROLLBACK", ()).await;
+                    return Err(err);
+                }
+            }
+        }
+
+        unreachable!("AimemDb with_concurrent_write should return inside retry loop");
     }
 
     /// Return the configured embedding dimension, inferring it from existing
@@ -240,7 +385,7 @@ impl AimemDb {
             return Ok(Some(dim));
         }
 
-        let conn = self.conn()?;
+        let conn = self.read_conn()?;
 
         let mut rows = conn
             .query(
@@ -341,7 +486,6 @@ impl AimemDb {
 
     /// Validate or initialize the store dimension before writing an embedding.
     async fn ensure_embedding_dimension_for_write(&self, dim: usize) -> DbResult<()> {
-        let conn = self.conn()?;
         if let Some(expected) = self.embedding_dimension().await? {
             if expected != dim {
                 return Err(DbError::EmbeddingDimensionMismatch {
@@ -352,12 +496,7 @@ impl AimemDb {
             return Ok(());
         }
 
-        conn.execute(
-            "INSERT OR REPLACE INTO aimem_meta (key, value) VALUES ('embedding_dim', ?1)",
-            [dim.to_string()],
-        )
-        .await?;
-        Ok(())
+        self.set_meta_value("embedding_dim", &dim.to_string()).await
     }
 
     async fn ensure_embedding_profile_for_write(
@@ -439,8 +578,6 @@ impl AimemDb {
         drawer: &Drawer,
         embedding: Option<&[f32]>,
     ) -> DbResult<bool> {
-        let conn = self.conn()?;
-
         // Serialize embedding as JSON array for vector32()
         let emb_json: Option<String> = embedding.map(|v| {
             let nums: Vec<String> = v.iter().map(|f| f.to_string()).collect();
@@ -459,47 +596,54 @@ impl AimemDb {
              VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, ?7, ?8, ?9)"
         };
 
-        let rows_affected = if let Some(ref emb) = emb_json {
-            conn.execute(
-                sql,
-                turso::params![
-                    drawer.id.as_str(),
-                    drawer.wing.as_str(),
-                    drawer.room.as_str(),
-                    drawer.content.as_str(),
-                    parts_json.as_str(),
-                    emb.as_str(),
-                    drawer.source_file.as_deref(),
-                    drawer.chunk_index,
-                    drawer.added_by.as_str(),
-                    drawer.filed_at.as_str(),
-                ],
-            )
-            .await?
-        } else {
-            conn.execute(
-                sql,
-                turso::params![
-                    drawer.id.as_str(),
-                    drawer.wing.as_str(),
-                    drawer.room.as_str(),
-                    drawer.content.as_str(),
-                    parts_json.as_str(),
-                    drawer.source_file.as_deref(),
-                    drawer.chunk_index,
-                    drawer.added_by.as_str(),
-                    drawer.filed_at.as_str(),
-                ],
-            )
-            .await?
-        };
+        self.with_concurrent_write("insert_drawer", move |conn| {
+            let emb_json = emb_json.clone();
+            let parts_json = parts_json.clone();
+            async move {
+                let rows_affected = if let Some(ref emb) = emb_json {
+                    conn.execute(
+                        sql,
+                        turso::params![
+                            drawer.id.as_str(),
+                            drawer.wing.as_str(),
+                            drawer.room.as_str(),
+                            drawer.content.as_str(),
+                            parts_json.as_str(),
+                            emb.as_str(),
+                            drawer.source_file.as_deref(),
+                            drawer.chunk_index,
+                            drawer.added_by.as_str(),
+                            drawer.filed_at.as_str(),
+                        ],
+                    )
+                    .await?
+                } else {
+                    conn.execute(
+                        sql,
+                        turso::params![
+                            drawer.id.as_str(),
+                            drawer.wing.as_str(),
+                            drawer.room.as_str(),
+                            drawer.content.as_str(),
+                            parts_json.as_str(),
+                            drawer.source_file.as_deref(),
+                            drawer.chunk_index,
+                            drawer.added_by.as_str(),
+                            drawer.filed_at.as_str(),
+                        ],
+                    )
+                    .await?
+                };
 
-        Ok(rows_affected > 0)
+                Ok(rows_affected > 0)
+            }
+        })
+        .await
     }
 
     /// Check whether a drawer ID already exists.
     pub async fn drawer_exists(&self, id: &str) -> DbResult<bool> {
-        let conn = self.conn()?;
+        let conn = self.read_conn()?;
         let mut rows = conn
             .query("SELECT 1 FROM drawers WHERE id = ?1 LIMIT 1", [id])
             .await?;
@@ -508,7 +652,7 @@ impl AimemDb {
 
     /// Check if a source file has already been mined.
     pub async fn source_already_mined(&self, source_file: &str) -> DbResult<bool> {
-        let conn = self.conn()?;
+        let conn = self.read_conn()?;
         let mut rows = conn
             .query(
                 "SELECT 1 FROM drawers WHERE source_file = ?1 LIMIT 1",
@@ -520,11 +664,13 @@ impl AimemDb {
 
     /// Delete a drawer by ID.
     pub async fn delete_drawer(&self, id: &str) -> DbResult<bool> {
-        let conn = self.conn()?;
-        let n = conn
-            .execute("DELETE FROM drawers WHERE id = ?1", [id])
-            .await?;
-        Ok(n > 0)
+        self.with_concurrent_write("delete_drawer", move |conn| async move {
+            let n = conn
+                .execute("DELETE FROM drawers WHERE id = ?1", [id])
+                .await?;
+            Ok(n > 0)
+        })
+        .await
     }
 
     /// Find drawers whose content exactly matches the provided text.
@@ -533,7 +679,7 @@ impl AimemDb {
         content: &str,
         limit: usize,
     ) -> DbResult<Vec<Drawer>> {
-        let conn = self.conn()?;
+        let conn = self.read_conn()?;
         let mut rows = conn
             .query(
                 "SELECT id, wing, room, content, parts, source_file, chunk_index, added_by, filed_at \
@@ -551,7 +697,7 @@ impl AimemDb {
 
     /// Total drawer count.
     pub async fn drawer_count(&self) -> DbResult<i64> {
-        let conn = self.conn()?;
+        let conn = self.read_conn()?;
         let mut rows = conn.query("SELECT COUNT(*) FROM drawers", ()).await?;
         let row = rows
             .next()
@@ -562,7 +708,7 @@ impl AimemDb {
 
     /// Return wing → count and room → count aggregates.
     pub async fn taxonomy(&self) -> DbResult<(Vec<(String, i64)>, Vec<(String, i64)>)> {
-        let conn = self.conn()?;
+        let conn = self.read_conn()?;
 
         let mut wing_rows = conn
             .query(
@@ -608,7 +754,7 @@ impl AimemDb {
         room: Option<&str>,
         limit: usize,
     ) -> DbResult<Vec<Drawer>> {
-        let conn = self.conn()?;
+        let conn = self.read_conn()?;
         let limit = limit as i64;
 
         let (sql, params_vec): (String, Vec<String>) = match (wing, room) {
@@ -662,46 +808,50 @@ impl AimemDb {
 
     /// Insert or replace an entity.
     pub async fn upsert_entity(&self, entity: &Entity) -> DbResult<()> {
-        let conn = self.conn()?;
-        conn.execute(
-            "INSERT OR REPLACE INTO entities (id, name, type, properties, created_at) \
-             VALUES (?1, ?2, ?3, ?4, ?5)",
-            turso::params![
-                entity.id.as_str(),
-                entity.name.as_str(),
-                entity.entity_type.as_str(),
-                entity.properties.as_str(),
-                entity.created_at.as_str(),
-            ],
-        )
-        .await?;
-        Ok(())
+        self.with_concurrent_write("upsert_entity", move |conn| async move {
+            conn.execute(
+                "INSERT OR REPLACE INTO entities (id, name, type, properties, created_at) \
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                turso::params![
+                    entity.id.as_str(),
+                    entity.name.as_str(),
+                    entity.entity_type.as_str(),
+                    entity.properties.as_str(),
+                    entity.created_at.as_str(),
+                ],
+            )
+            .await?;
+            Ok(())
+        })
+        .await
     }
 
     /// Insert a triple (ignore if already exists).
     pub async fn insert_triple(&self, triple: &Triple) -> DbResult<bool> {
-        let conn = self.conn()?;
-        let n = conn
-            .execute(
-                "INSERT OR IGNORE INTO triples \
-                 (id, subject, predicate, object, valid_from, valid_to, confidence, \
-                  source_closet, source_file, extracted_at) \
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
-                turso::params![
-                    triple.id.as_str(),
-                    triple.subject.as_str(),
-                    triple.predicate.as_str(),
-                    triple.object.as_str(),
-                    triple.valid_from.as_deref(),
-                    triple.valid_to.as_deref(),
-                    triple.confidence,
-                    triple.source_closet.as_deref(),
-                    triple.source_file.as_deref(),
-                    triple.extracted_at.as_str(),
-                ],
-            )
-            .await?;
-        Ok(n > 0)
+        self.with_concurrent_write("insert_triple", move |conn| async move {
+            let n = conn
+                .execute(
+                    "INSERT OR IGNORE INTO triples \
+                     (id, subject, predicate, object, valid_from, valid_to, confidence, \
+                      source_closet, source_file, extracted_at) \
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                    turso::params![
+                        triple.id.as_str(),
+                        triple.subject.as_str(),
+                        triple.predicate.as_str(),
+                        triple.object.as_str(),
+                        triple.valid_from.as_deref(),
+                        triple.valid_to.as_deref(),
+                        triple.confidence,
+                        triple.source_closet.as_deref(),
+                        triple.source_file.as_deref(),
+                        triple.extracted_at.as_str(),
+                    ],
+                )
+                .await?;
+            Ok(n > 0)
+        })
+        .await
     }
 
     /// Mark a triple as expired (set valid_to).
@@ -712,15 +862,17 @@ impl AimemDb {
         object: &str,
         ended: &str,
     ) -> DbResult<u64> {
-        let conn = self.conn()?;
-        let n = conn
-            .execute(
-                "UPDATE triples SET valid_to = ?1 \
-                 WHERE subject = ?2 AND predicate = ?3 AND object = ?4 AND valid_to IS NULL",
-                turso::params![ended, subject, predicate, object],
-            )
-            .await?;
-        Ok(n)
+        self.with_concurrent_write("invalidate_triple", move |conn| async move {
+            let n = conn
+                .execute(
+                    "UPDATE triples SET valid_to = ?1 \
+                     WHERE subject = ?2 AND predicate = ?3 AND object = ?4 AND valid_to IS NULL",
+                    turso::params![ended, subject, predicate, object],
+                )
+                .await?;
+            Ok(n)
+        })
+        .await
     }
 }
 
@@ -760,5 +912,65 @@ fn val_to_string(row: &turso::Row, idx: usize) -> DbResult<String> {
         turso::Value::Integer(i) => Ok(i.to_string()),
         turso::Value::Real(f) => Ok(f.to_string()),
         turso::Value::Blob(_) => Ok(String::new()),
+    }
+}
+
+fn is_retryable_turso_write_error(err: &turso::Error) -> bool {
+    matches!(err, turso::Error::Busy(_) | turso::Error::BusySnapshot(_))
+        || matches!(err, turso::Error::Error(msg) if msg.contains("conflict"))
+}
+
+fn turso_write_error_kind(err: &turso::Error) -> &'static str {
+    match err {
+        turso::Error::Busy(_) => "busy",
+        turso::Error::BusySnapshot(_) => "busy_snapshot",
+        turso::Error::Error(msg) if msg.contains("conflict") => "conflict",
+        _ => "other",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn turso_write_error_kind_classifies_busy_variants_and_conflicts() {
+        assert_eq!(
+            turso_write_error_kind(&turso::Error::Busy("busy".to_string())),
+            "busy"
+        );
+        assert_eq!(
+            turso_write_error_kind(&turso::Error::BusySnapshot("snapshot".to_string())),
+            "busy_snapshot"
+        );
+        assert_eq!(
+            turso_write_error_kind(&turso::Error::Error("write conflict".to_string())),
+            "conflict"
+        );
+        assert_eq!(
+            turso_write_error_kind(&turso::Error::Constraint("nope".to_string())),
+            "other"
+        );
+    }
+
+    #[tokio::test]
+    async fn read_connection_uses_query_only_mode() {
+        let db = AimemDb::memory().await.expect("memory db should open");
+        let err = db
+            .read_conn()
+            .expect("read connection should exist")
+            .execute(
+                "INSERT INTO aimem_meta (key, value) VALUES (?1, ?2)",
+                ["forbidden", "1"],
+            )
+            .await
+            .expect_err("query-only connection must reject writes");
+        let msg = err.to_string().to_ascii_lowercase();
+        assert!(
+            matches!(&err, turso::Error::Readonly(_))
+                || msg.contains("readonly")
+                || msg.contains("query_only"),
+            "expected readonly/query_only error, got {err:?}"
+        );
     }
 }

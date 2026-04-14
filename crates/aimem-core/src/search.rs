@@ -77,7 +77,7 @@ impl Searcher {
             .await?;
         let qvec_json = crate::embedder::to_vector32_json(&qvec);
 
-        let conn = self.db.conn()?;
+        let conn = self.db.read_conn()?;
 
         // Build dynamic SQL + gather rows using turso params! macro
         let sql = build_vector_sql(wing, room);
@@ -122,7 +122,7 @@ impl Searcher {
         room: Option<&str>,
         limit: usize,
     ) -> Result<Vec<Drawer>, SearchError> {
-        let conn = self.db.conn()?;
+        let conn = self.db.read_conn()?;
         let like = format!("%{}%", query.replace('%', "\\%").replace('_', "\\_"));
         let sql = build_keyword_sql(wing, room);
 

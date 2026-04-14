@@ -78,7 +78,7 @@ impl KnowledgeGraph {
         let pred = normalize_predicate(predicate);
 
         // Dedup: if an identical active triple exists, return its ID
-        let conn = self.db.conn()?;
+        let conn = self.db.read_conn()?;
         let mut existing = conn
             .query(
                 "SELECT id FROM triples \
@@ -148,7 +148,7 @@ impl KnowledgeGraph {
         direction: &str,
     ) -> Result<Vec<Triple>, DbError> {
         let eid = entity_id(name);
-        let conn = self.db.conn()?;
+        let conn = self.db.read_conn()?;
         let mut results = Vec::new();
 
         if direction == "outgoing" || direction == "both" {
@@ -172,7 +172,7 @@ impl KnowledgeGraph {
 
     /// Chronological timeline of facts (optionally filtered by entity).
     pub async fn timeline(&self, entity: Option<&str>) -> Result<Vec<Triple>, DbError> {
-        let conn = self.db.conn()?;
+        let conn = self.db.read_conn()?;
         let mut results = Vec::new();
 
         if let Some(name) = entity {
@@ -210,7 +210,7 @@ impl KnowledgeGraph {
 
     /// Knowledge graph statistics.
     pub async fn stats(&self) -> Result<serde_json::Value, DbError> {
-        let conn = self.db.conn()?;
+        let conn = self.db.read_conn()?;
 
         let entities = query_count(&conn, "SELECT COUNT(*) FROM entities").await?;
         let triples = query_count(&conn, "SELECT COUNT(*) FROM triples").await?;
