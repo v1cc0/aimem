@@ -8,7 +8,7 @@
 
 - 基于 Turso 的存储
 - 项目挖掘与会话导入
-- 关键词 / 语义检索
+- hybrid 关键词 + 向量检索
 - memory layers / wake-up context
 - 知识图谱
 - embedding profile guard
@@ -33,6 +33,7 @@ CLI 在 `aimem-cli`，MCP server 在 `aimem-mcp`。
 - `MemoryStack::file_text(...)`
 - `MemoryStack::file_drawer_with_id(...)`
 - `MemoryStack::file_drawers_with_ids(...)`
+- 基于 Turso FTS + RRF 的 hybrid 检索
 - 收窄后的 extractor 与多语言回归测试
 
 ## 安装
@@ -197,7 +198,7 @@ let drawer = Drawer::multimodal(
 );
 ```
 
-## 语义搜索例子
+## Hybrid 搜索例子
 
 ```rust,no_run
 use std::sync::Arc;
@@ -208,7 +209,7 @@ async fn main() -> anyhow::Result<()> {
     let db = AimemDb::memory().await?;
     let embedder = Arc::new(LocalEmbedder::new()?);
 
-    let content = "We moved the memory backend to Turso for local vector search.";
+    let content = "We moved the memory backend to Turso for local hybrid search.";
     let embedding = embedder.embed_one(content).await?;
 
     let drawer = Drawer::new("drawer_demo_001", "demo_app", "backend", content, "example");
@@ -220,7 +221,7 @@ async fn main() -> anyhow::Result<()> {
     ).await?;
 
     let searcher = Searcher::new(db, embedder);
-    let hits = searcher.vector_search("local vector database", Some("demo_app"), None, 5).await?;
+    let hits = searcher.hybrid_search("local memory database", Some("demo_app"), None, 5).await?;
     assert!(!hits.is_empty());
     Ok(())
 }
@@ -249,5 +250,5 @@ println!("{id}");
 
 - `AimemDb::open()` 会自动建表。
 - `Miner::new(db, None)` / `ConvoMiner::new(db, None)` 适合 text-only 落库。
-- 没有 embedding 的 drawer 依然能参与关键词搜索。
+- 没有 embedding 的 drawer 依然能参与关键词 / fallback 搜索。
 - `AimemDb::embedding_profile()` 可查看当前 store profile。

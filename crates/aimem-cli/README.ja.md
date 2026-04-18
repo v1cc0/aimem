@@ -8,8 +8,7 @@
 
 - プロジェクトマイニング
 - 会話インポート
-- キーワード検索
-- セマンティック検索
+- hybrid キーワード + ベクトル検索
 - wake-up context 生成
 - store status 表示
 - opt-in remote embedding
@@ -25,7 +24,7 @@ cargo install aimem-cli
 ```bash
 aimem status
 aimem wake-up
-aimem search "vector search"
+aimem search "hybrid search"
 aimem mine /path/to/project --no-embed
 ```
 
@@ -33,5 +32,9 @@ aimem mine /path/to/project --no-embed
 
 ```bash
 export GEMINI_API_KEY=...
-aimem search "vector search" --gemini-key "$GEMINI_API_KEY"
+aimem search "hybrid search" --gemini-key "$GEMINI_API_KEY"
 ```
+
+## メモ
+
+- `aimem search` は embedder が使える場合に hybrid キーワード + ベクトル順位付けを使います。

@@ -24,7 +24,7 @@
 //! │  L0  Identity text           ~100 tokens   always loaded │
 //! │  L1  Essential story         ~500-800 tok  always loaded │
 //! │  L2  On-demand recall        ~200-500 tok  loaded on ask │
-//! │  L3  Deep semantic search    unlimited     full memory   │
+//! │  L3  Deep hybrid search      unlimited     full memory   │
 //! └─────────────────────────────────────────────────────────┘
 //! ```
 

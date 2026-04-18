@@ -8,7 +8,7 @@ It provides:
 
 - Turso-backed storage
 - project mining and conversation import
-- keyword and semantic retrieval
+- hybrid keyword + vector retrieval
 - memory layers / wake-up context generation
 - knowledge graph support
 - embedding profile guards
@@ -33,6 +33,7 @@ Current `aimem-core` includes:
 - `MemoryStack::file_text(...)`
 - `MemoryStack::file_drawer_with_id(...)`
 - `MemoryStack::file_drawers_with_ids(...)`
+- Turso FTS + RRF-based hybrid search
 - tighter extractor heuristics with multilingual regression tests
 
 ## Install
@@ -197,7 +198,7 @@ let drawer = Drawer::multimodal(
 );
 ```
 
-## Semantic search example
+## Hybrid search example
 
 ```rust,no_run
 use std::sync::Arc;
@@ -208,7 +209,7 @@ async fn main() -> anyhow::Result<()> {
     let db = AimemDb::memory().await?;
     let embedder = Arc::new(LocalEmbedder::new()?);
 
-    let content = "We moved the memory backend to Turso for local vector search.";
+    let content = "We moved the memory backend to Turso for local hybrid search.";
     let embedding = embedder.embed_one(content).await?;
 
     let drawer = Drawer::new("drawer_demo_001", "demo_app", "backend", content, "example");
@@ -220,7 +221,7 @@ async fn main() -> anyhow::Result<()> {
     ).await?;
 
     let searcher = Searcher::new(db, embedder);
-    let hits = searcher.vector_search("local vector database", Some("demo_app"), None, 5).await?;
+    let hits = searcher.hybrid_search("local memory database", Some("demo_app"), None, 5).await?;
     assert!(!hits.is_empty());
     Ok(())
 }
@@ -249,5 +250,5 @@ println!("{id}");
 
 - `AimemDb::open()` bootstraps schema automatically.
 - `Miner::new(db, None)` and `ConvoMiner::new(db, None)` work fine for text-only filing.
-- drawers without embeddings still appear in keyword search.
+- drawers without embeddings still appear in keyword / fallback search.
 - `AimemDb::embedding_profile()` reports the current store profile.

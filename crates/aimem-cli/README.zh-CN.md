@@ -25,7 +25,7 @@ cargo install aimem-cli
 ```bash
 aimem status
 aimem wake-up
-aimem search "vector search"
+aimem search "hybrid search"
 aimem mine /path/to/project --no-embed
 ```
 
@@ -33,11 +33,12 @@ aimem mine /path/to/project --no-embed
 
 ```bash
 export GEMINI_API_KEY=...
-aimem search "vector search" --gemini-key "$GEMINI_API_KEY"
+aimem search "hybrid search" --gemini-key "$GEMINI_API_KEY"
 ```
 
 ## 说明
 
 - `aimem status` 会显示当前 embedding profile。
 - `aimem search` / `aimem mine` 可使用 `--gemini-key` 或 `GEMINI_API_KEY`。
+- 当 embedder 可用时，`aimem search` 会走 hybrid 关键词 + 向量排序。
 - 默认 DB 路径是 `~/.aimem/aimem.db`。

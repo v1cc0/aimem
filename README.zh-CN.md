@@ -32,6 +32,7 @@ AiMem 是面向 AI agent 的 Rust-first 本地记忆基础设施。
 - `MemoryStack::file_text(...)`
 - `MemoryStack::file_drawer_with_id(...)`
 - `MemoryStack::file_drawers_with_ids(...)`
+- 基于 Turso FTS + RRF 融合的 hybrid 检索
 - CLI / MCP status 暴露 embedding profile
 - 收窄后的 extractor 与多语言回归测试
 - CI 中的 `cargo audit`
@@ -48,7 +49,7 @@ crates/
 ## 核心特点
 
 - 单一本地 Turso DB：`~/.aimem/aimem.db`
-- 关键词 + 语义检索
+- hybrid 关键词 + 向量检索
 - 项目挖掘与会话导入
 - 4 层 wake-up memory stack
 - 多模态内容模型
@@ -182,7 +183,7 @@ async fn main() -> anyhow::Result<()> {
 ```bash
 aimem status
 aimem wake-up
-aimem search "vector search"
+aimem search "hybrid search"
 aimem mine /path/to/project --no-embed
 ```
 
@@ -190,6 +191,7 @@ aimem mine /path/to/project --no-embed
 
 - `aimem status` 会显示当前 DB 的 embedding profile。
 - `aimem search` / `aimem mine` 可通过 `--gemini-key` 或 `GEMINI_API_KEY` 启用 remote embedding。
+- 当 embedder 可用时，`aimem search` 会走 hybrid 关键词 + 向量排序。
 - 项目挖掘要求目标根目录里有 `aimem.yaml`。
 
 ## MCP

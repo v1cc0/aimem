@@ -4,7 +4,7 @@
 //! L0  Identity        (~100 tokens)   Always loaded — identity.txt
 //! L1  Essential Story (~500-800 tok)  Top drawers from AiMem
 //! L2  On-Demand       (~200-500 tok)  Wing/room filtered retrieval
-//! L3  Deep Search     (unlimited)     Turso vector_distance_cos semantic search
+//! L3  Deep Search     (unlimited)     Turso hybrid keyword + vector search
 //! ```
 
 use std::collections::{HashMap, HashSet};

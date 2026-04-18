@@ -31,5 +31,5 @@ aimem-mcp
 ## 说明
 
 - `aimem_status` 会返回当前 embedding profile。
-- `aimem_search` 在有 embedder 时优先走语义搜索，否则回退到关键词搜索。
+- `aimem_search` 在有 embedder 时会走 hybrid 关键词 + 向量排序，否则回退到关键词搜索。
 - 默认 DB 路径为 `~/.aimem/aimem.db`。

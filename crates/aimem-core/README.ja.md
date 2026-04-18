@@ -8,7 +8,7 @@
 
 - Turso ベースの保存
 - プロジェクトマイニングと会話インポート
-- キーワード / セマンティック検索
+- hybrid キーワード + ベクトル検索
 - memory layers / wake-up context
 - 知識グラフ
 - embedding profile guard
@@ -25,6 +25,7 @@
 - `MemoryStack::file_text(...)`
 - `MemoryStack::file_drawer_with_id(...)`
 - `MemoryStack::file_drawers_with_ids(...)`
+- Turso FTS + RRF ベースの hybrid 検索
 - extractor の回帰テスト強化
 
 ## インストール
@@ -145,6 +146,10 @@ println!("inserted={inserted:?}");
 
 AiMem は embedding 前に既存 stable ID を確認するため、同じバッチを
 再試行しても、すでに保存済みの drawer に対して余計な remote embedding 呼び出しを行いません。
+
+## Hybrid 検索
+
+`Searcher::hybrid_search(...)` は Turso FTS のキーワード面と vector 検索面を RRF で融合します。
 
 ## 直接 text を filing
 

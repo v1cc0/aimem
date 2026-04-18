@@ -8,8 +8,7 @@
 
 - project mining
 - conversation import
-- keyword search
-- semantic search
+- hybrid keyword + vector search
 - wake-up context generation
 - store status inspection
 - opt-in remote embedding
@@ -25,7 +24,7 @@ cargo install aimem-cli
 ```bash
 aimem status
 aimem wake-up
-aimem search "vector search"
+aimem search "hybrid search"
 aimem mine /path/to/project --no-embed
 ```
 
@@ -33,11 +32,12 @@ aimem mine /path/to/project --no-embed
 
 ```bash
 export GEMINI_API_KEY=...
-aimem search "vector search" --gemini-key "$GEMINI_API_KEY"
+aimem search "hybrid search" --gemini-key "$GEMINI_API_KEY"
 ```
 
 ## Notes
 
 - `aimem status` shows the current embedding profile.
 - `aimem search` and `aimem mine` can use `--gemini-key` or `GEMINI_API_KEY`.
+- `aimem search` uses hybrid keyword + vector ranking when an embedder is available.
 - default DB path is `~/.aimem/aimem.db`.

@@ -31,5 +31,5 @@ aimem-mcp
 ## Notes
 
 - `aimem_status` reports the current embedding profile.
-- `aimem_search` prefers semantic search when an embedder is available and falls back to keyword search otherwise.
+- `aimem_search` uses hybrid keyword + vector ranking when an embedder is available and falls back to keyword search otherwise.
 - default DB path is `~/.aimem/aimem.db`.

@@ -3,7 +3,9 @@ use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use aimem_core::{AimemDb, Config, Drawer, Embedder, LocalEmbedder, SearchResult, Searcher};
+use aimem_core::{
+    AimemDb, Config, Drawer, Embedder, HybridSearchResult, LocalEmbedder, SearchResult, Searcher,
+};
 use anyhow::{Context, Result};
 use chrono::Utc;
 use serde_json::{Map, Value, json};
@@ -108,16 +110,16 @@ impl ServerState {
         match self.ensure_embedder().await {
             Ok(embedder) => {
                 let searcher = Searcher::new(self.db.clone(), embedder);
-                let semantic_results = searcher.vector_search(query, wing, room, limit).await?;
+                let hybrid_results = searcher.hybrid_search(query, wing, room, limit).await?;
 
-                if !semantic_results.is_empty() {
+                if !hybrid_results.is_empty() {
                     Ok(search_payload(
                         query,
                         limit,
                         wing,
                         room,
-                        "semantic",
-                        semantic_results,
+                        "hybrid",
+                        hybrid_results,
                         Vec::new(),
                     ))
                 } else if !keyword_results.is_empty() {
@@ -143,9 +145,7 @@ impl ServerState {
                 }
             }
             Err(err) if !keyword_results.is_empty() => {
-                tracing::warn!(
-                    "semantic search unavailable, falling back to keyword search: {err}"
-                );
+                tracing::warn!("hybrid search unavailable, falling back to keyword search: {err}");
                 Ok(search_payload(
                     query,
                     limit,
@@ -581,7 +581,7 @@ fn tool_specs() -> Vec<Value> {
         ),
         tool_spec(
             "aimem_search",
-            "Search AiMem. Prefers semantic results when available, falls back to keyword search.",
+            "Search AiMem. Uses hybrid keyword + vector ranking when an embedder is available, otherwise falls back to keyword search.",
             json!({
                 "type": "object",
                 "properties": {
@@ -649,13 +649,13 @@ fn search_payload(
     wing: Option<&str>,
     room: Option<&str>,
     strategy: &str,
-    semantic_results: Vec<SearchResult>,
+    hybrid_results: Vec<HybridSearchResult>,
     keyword_results: Vec<Drawer>,
 ) -> Value {
-    let results = if !semantic_results.is_empty() {
-        semantic_results
+    let results = if !hybrid_results.is_empty() {
+        hybrid_results
             .into_iter()
-            .map(search_result_to_json)
+            .map(hybrid_search_result_to_json)
             .collect::<Vec<_>>()
     } else {
         keyword_results
@@ -697,6 +697,20 @@ fn search_result_to_json(result: SearchResult) -> Value {
         "parts": result.drawer.parts,
         "source_file": result.drawer.source_file,
         "similarity": result.similarity,
+    })
+}
+
+fn hybrid_search_result_to_json(result: HybridSearchResult) -> Value {
+    json!({
+        "id": result.drawer.id,
+        "wing": result.drawer.wing,
+        "room": result.drawer.room,
+        "content": result.drawer.content,
+        "parts": result.drawer.parts,
+        "source_file": result.drawer.source_file,
+        "score": result.score,
+        "semantic_similarity": result.semantic_similarity,
+        "keyword_score": result.keyword_score,
     })
 }
 

@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.3.7] - 2026-04-18
+
+### Added
+- Added `KeywordSearchResult` and `HybridSearchResult` so callers can inspect keyword-side and fused hybrid ranking signals instead of only raw vector similarity.
+- Added `Searcher::keyword_search_scored(...)` and `Searcher::hybrid_search(...)` for Tantivy-backed keyword retrieval plus RRF fusion with vector search.
+
+### Changed
+- `AimemDb` now maintains a `drawers_fts` sidecar table and `USING fts(search_text)` index, and keeps that sidecar synchronized on migration, insert, and delete paths.
+- `MemoryStack::search(...)`, `aimem search`, and `aimem-mcp` `aimem_search` now use hybrid retrieval instead of semantic-only-first behavior.
+- Upgraded the workspace Turso stack from `0.6.0-pre.17` to `0.6.0-pre.18`.
+- Switched local write transactions away from MVCC / `BEGIN CONCURRENT` to retried regular write transactions, because Turso custom index modules (FTS index method) are not supported together with MVCC in the current local runtime.
+
+### Tests
+- Added regression coverage for FTS sidecar backfill on reopen, hybrid RRF ranking, and FTS-side delete cleanup.
+
 ## [0.3.6] - 2026-04-14
 
 ### Changed

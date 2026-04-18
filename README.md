@@ -36,6 +36,7 @@ The `0.3.x` line introduced the main architectural improvements that were missin
 - `MemoryStack::file_text(...)`
 - `MemoryStack::file_drawer_with_id(...)`
 - `MemoryStack::file_drawers_with_ids(...)`
+- hybrid keyword + vector search via Turso FTS + RRF fusion
 - CLI / MCP status now showing embedding profile
 - tighter extractor heuristics with multilingual regression tests
 - CI dependency auditing via `cargo audit`
@@ -52,7 +53,7 @@ crates/
 ## Highlights
 
 - one local Turso DB file: `~/.aimem/aimem.db`
-- keyword + semantic retrieval
+- hybrid keyword + vector retrieval
 - project mining and conversation mining
 - 4-layer wake-up memory stack
 - multimodal content model
@@ -189,7 +190,7 @@ async fn main() -> anyhow::Result<()> {
 ```bash
 aimem status
 aimem wake-up
-aimem search "vector search"
+aimem search "hybrid search"
 aimem mine /path/to/project --no-embed
 ```
 
@@ -197,6 +198,7 @@ Useful notes:
 
 - `aimem status` shows the current embedding profile stored in the DB.
 - `aimem search` and `aimem mine` can use `--gemini-key` or `GEMINI_API_KEY` for opt-in remote embedding.
+- `aimem search` uses hybrid keyword + vector ranking when an embedder is available.
 - project mining expects an `aimem.yaml` file in the target project root.
 
 ## MCP
