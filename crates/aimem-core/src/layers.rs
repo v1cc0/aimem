@@ -157,7 +157,7 @@ pub async fn l2_retrieve(
 
 // ── L3 — Deep Search ─────────────────────────────────────────────────────────
 
-/// Layer 3: full semantic search via Turso `vector_distance_cos`.
+/// Layer 3: hybrid keyword + semantic search via Turso FTS + vectors.
 pub async fn l3_search(
     searcher: &Searcher,
     query: &str,
@@ -165,7 +165,7 @@ pub async fn l3_search(
     room: Option<&str>,
     n: usize,
 ) -> Result<String, LayerError> {
-    let results = searcher.vector_search(query, wing, room, n).await?;
+    let results = searcher.hybrid_search(query, wing, room, n).await?;
 
     if results.is_empty() {
         return Ok("No results found.".to_string());
@@ -195,11 +195,17 @@ pub async fn l3_search(
             .unwrap_or_default();
 
         lines.push(format!(
-            "  [{}] {}/{} (sim={:.3})",
+            "  [{}] {}/{} (score={:.3}{}{})",
             i + 1,
             r.drawer.wing,
             r.drawer.room,
-            r.similarity,
+            r.score,
+            r.semantic_similarity
+                .map(|sim| format!(", sim={sim:.3}"))
+                .unwrap_or_default(),
+            r.keyword_score
+                .map(|score| format!(", kw={score:.3}"))
+                .unwrap_or_default(),
         ));
         lines.push(format!("      {}", snippet));
         if !source.is_empty() {
@@ -246,7 +252,7 @@ impl MemoryStack {
         l2_retrieve(&self.db, wing, room, 10).await
     }
 
-    /// Deep L3 semantic search.
+    /// Deep L3 hybrid search.
     pub async fn search(
         &self,
         query: &str,

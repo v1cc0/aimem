@@ -12,7 +12,7 @@
 //! |---------|---------------|
 //! | Vector storage | Turso `vector32()` BLOB column |
 //! | Semantic search | `vector_distance_cos()` — SimSIMD-accelerated cosine |
-//! | Full-text search | SQL `LIKE` scan (Turso FTS index optional) |
+//! | Full-text search | Turso FTS / Tantivy (`fts_match`, `fts_score`) |
 //! | Embedding generation | Gemini 2.0 (Remote) or `fastembed` (Local) |
 //! | Knowledge graph | Temporal entity-relationship triples in SQLite |
 //! | Graph traversal | BFS over wing/room adjacency — no graph DB needed |
@@ -50,8 +50,8 @@ pub use layers::MemoryStack;
 pub use miner::Miner;
 pub use search::Searcher;
 pub use types::{
-    ContentPart, Drawer, DrawerFilingRequest, DrawerMeta, Entity, RoomNode, SearchResult, Triple,
-    Tunnel,
+    ContentPart, Drawer, DrawerFilingRequest, DrawerMeta, Entity, HybridSearchResult,
+    KeywordSearchResult, RoomNode, SearchResult, Triple, Tunnel,
 };
 
 /// Curated high-level imports for typical AiMem integrations.
@@ -59,7 +59,7 @@ pub mod prelude {
     pub use crate::{
         AimemDb, AimemGraph, Config, ContentPart, ConvoMineStats, ConvoMiner, Drawer,
         DrawerFilingRequest, DrawerMeta, Embedder, EmbeddingStoreProfile, Entity, Gemini2Embedder,
-        KnowledgeGraph, LocalEmbedder, MemoryStack, Miner, RoomNode, SearchResult, Searcher,
-        Triple, Tunnel,
+        HybridSearchResult, KeywordSearchResult, KnowledgeGraph, LocalEmbedder, MemoryStack, Miner,
+        RoomNode, SearchResult, Searcher, Triple, Tunnel,
     };
 }

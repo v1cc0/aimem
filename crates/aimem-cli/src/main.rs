@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use aimem_core::{
-    AimemDb, Drawer, Embedder, Gemini2Embedder, LocalEmbedder, Miner, SearchResult, Searcher,
+    AimemDb, Drawer, Embedder, Gemini2Embedder, HybridSearchResult, LocalEmbedder, Miner, Searcher,
     config::Config,
     convo::ConvoMiner,
     layers::{l0_render, l1_generate},
@@ -261,8 +261,8 @@ async fn cmd_search(db_path: Option<&Path>, args: SearchArgs) -> Result<()> {
     match load_embedder(args.gemini_key.as_deref()) {
         Ok(embedder) => {
             let searcher = Searcher::new(runtime.db, embedder);
-            let vector_results = searcher
-                .vector_search(
+            let hybrid_results = searcher
+                .hybrid_search(
                     &args.query,
                     args.wing.as_deref(),
                     args.room.as_deref(),
@@ -271,8 +271,8 @@ async fn cmd_search(db_path: Option<&Path>, args: SearchArgs) -> Result<()> {
                 .await
                 .with_context(|| format!("search failed for query {:?}", args.query))?;
 
-            if !vector_results.is_empty() {
-                println!("{}", render_vector_results(&args.query, &vector_results));
+            if !hybrid_results.is_empty() {
+                println!("{}", render_hybrid_results(&args.query, &hybrid_results));
             } else if !keyword_results.is_empty() {
                 println!("{}", render_keyword_results(&args.query, &keyword_results));
             } else {
@@ -458,15 +458,18 @@ fn append_counts(out: &mut String, label: &str, counts: &[(String, i64)]) -> Res
     Ok(())
 }
 
-fn render_vector_results(query: &str, results: &[SearchResult]) -> String {
-    let mut lines = vec![format!("## L3 — SEARCH RESULTS for \"{}\"", query)];
+fn render_hybrid_results(query: &str, results: &[HybridSearchResult]) -> String {
+    let mut lines = vec![format!("## L3 — HYBRID SEARCH RESULTS for \"{}\"", query)];
 
     for (i, result) in results.iter().enumerate() {
-        lines.extend(render_drawer_block(
-            i + 1,
-            &result.drawer,
-            Some(format!("sim={:.3}", result.similarity)),
-        ));
+        let mut suffix = format!("score={:.3}", result.score);
+        if let Some(similarity) = result.semantic_similarity {
+            suffix.push_str(&format!(", sim={similarity:.3}"));
+        }
+        if let Some(keyword_score) = result.keyword_score {
+            suffix.push_str(&format!(", kw={keyword_score:.3}"));
+        }
+        lines.extend(render_drawer_block(i + 1, &result.drawer, Some(suffix)));
     }
 
     lines.join("\n")

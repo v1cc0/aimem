@@ -205,6 +205,26 @@ pub struct SearchResult {
     pub similarity: f32,
 }
 
+/// A scored keyword-search hit.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KeywordSearchResult {
+    pub drawer: Drawer,
+    /// Keyword relevance score (BM25/FTS when available, fallback heuristic otherwise).
+    pub score: f32,
+}
+
+/// A hybrid keyword + semantic search hit fused via reciprocal-rank fusion (RRF).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HybridSearchResult {
+    pub drawer: Drawer,
+    /// Normalized fused score (0..=1, higher = more relevant).
+    pub score: f32,
+    /// Semantic cosine similarity when the vector branch matched.
+    pub semantic_similarity: Option<f32>,
+    /// Keyword relevance score when the keyword branch matched.
+    pub keyword_score: Option<f32>,
+}
+
 /// A knowledge-graph entity node.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Entity {

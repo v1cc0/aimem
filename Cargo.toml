@@ -18,8 +18,8 @@ repository = "https://github.com/v1cc0/aimem"
 [workspace.dependencies]
 aimem-core = { version = "0.3.6", path = "crates/aimem-core" }
 
-# Turso — crates.io latest verified on 2026-04-14 via `cargo search turso`
-turso = { version = "0.6.0-pre.17", default-features = false }
+# Turso — crates.io latest verified on 2026-04-18 via `cargo info turso`
+turso = { version = "0.6.0-pre.18", default-features = false }
 
 # Async
 tokio = { version = "1", features = ["full"] }
