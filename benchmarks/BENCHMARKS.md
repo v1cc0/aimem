@@ -37,3 +37,33 @@ Each run writes:
 The committed fixture is small enough for CI once the benchmark command is wired
 into the workflow. Larger LongMemEval and multimodal result files should not be
 committed until size and license boundaries are checked.
+
+## Deterministic multimodal truth-text benchmark
+
+This fixture models the "extraction already succeeded" upper bound for image,
+scanned-PDF, and document memories in English / Chinese / Japanese. It does not
+read the referenced attachment paths and does not call a remote multimodal model;
+the fixture `truth_text` is rendered as the already-extracted evidence.
+
+```bash
+cargo run -p aimem-bench -- tri-memory \
+  --dataset benchmarks/fixtures/multimodal_truth_micro.jsonl \
+  --mode keyword-only \
+  --top-k 10 \
+  --out benchmarks/results_mm_truth_keyword_only.jsonl
+
+cargo run -p aimem-bench -- tri-memory \
+  --dataset benchmarks/fixtures/multimodal_truth_micro.jsonl \
+  --mode hybrid \
+  --top-k 10 \
+  --out benchmarks/results_mm_truth_hybrid.jsonl
+```
+
+Current micro results:
+
+| Dataset | Mode | R@1 | R@5 | Note |
+|---|---:|---:|---:|---|
+| `tri_memory_micro` | keyword-only | 0.333 | 0.333 | English-only wins; CJK has no useful keyword hits yet. |
+| `tri_memory_micro` | hybrid | 1.000 | 1.000 | Tiny smoke fixture, not a public quality claim. |
+| `multimodal_truth_micro` | keyword-only | 0.333 | 0.333 | Same CJK keyword/tokenization gap. |
+| `multimodal_truth_micro` | hybrid | 0.778 | 1.000 | CJK document questions are found by top-5, not always rank 1. |
