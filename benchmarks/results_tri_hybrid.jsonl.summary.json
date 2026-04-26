@@ -11,8 +11,8 @@
     "recall_at_10": 1.0,
     "mrr_at_10": 1.0,
     "ndcg_at_10": 1.0,
-    "avg_ingest_ms": 101.0,
-    "avg_query_ms": 8.88888888888889
+    "avg_ingest_ms": 100.22222222222223,
+    "avg_query_ms": 9.11111111111111
   },
   "by_language": {
     "en": {
@@ -22,8 +22,8 @@
       "recall_at_10": 1.0,
       "mrr_at_10": 1.0,
       "ndcg_at_10": 1.0,
-      "avg_ingest_ms": 99.33333333333333,
-      "avg_query_ms": 8.666666666666666
+      "avg_ingest_ms": 98.33333333333333,
+      "avg_query_ms": 9.0
     },
     "ja": {
       "count": 3,
@@ -32,7 +32,7 @@
       "recall_at_10": 1.0,
       "mrr_at_10": 1.0,
       "ndcg_at_10": 1.0,
-      "avg_ingest_ms": 102.66666666666667,
+      "avg_ingest_ms": 102.33333333333333,
       "avg_query_ms": 9.333333333333334
     },
     "zh": {
@@ -42,8 +42,8 @@
       "recall_at_10": 1.0,
       "mrr_at_10": 1.0,
       "ndcg_at_10": 1.0,
-      "avg_ingest_ms": 101.0,
-      "avg_query_ms": 8.666666666666666
+      "avg_ingest_ms": 100.0,
+      "avg_query_ms": 9.0
     }
   },
   "by_modality": {
@@ -54,8 +54,8 @@
       "recall_at_10": 1.0,
       "mrr_at_10": 1.0,
       "ndcg_at_10": 1.0,
-      "avg_ingest_ms": 101.0,
-      "avg_query_ms": 8.88888888888889
+      "avg_ingest_ms": 100.22222222222223,
+      "avg_query_ms": 9.11111111111111
     }
   },
   "by_question_type": {
@@ -66,7 +66,7 @@
       "recall_at_10": 1.0,
       "mrr_at_10": 1.0,
       "ndcg_at_10": 1.0,
-      "avg_ingest_ms": 100.66666666666667,
+      "avg_ingest_ms": 101.66666666666667,
       "avg_query_ms": 9.0
     },
     "single_session_assistant": {
@@ -76,7 +76,7 @@
       "recall_at_10": 1.0,
       "mrr_at_10": 1.0,
       "ndcg_at_10": 1.0,
-      "avg_ingest_ms": 102.0,
+      "avg_ingest_ms": 99.66666666666667,
       "avg_query_ms": 9.333333333333334
     },
     "single_session_user": {
@@ -86,8 +86,8 @@
       "recall_at_10": 1.0,
       "mrr_at_10": 1.0,
       "ndcg_at_10": 1.0,
-      "avg_ingest_ms": 100.33333333333333,
-      "avg_query_ms": 8.333333333333334
+      "avg_ingest_ms": 99.33333333333333,
+      "avg_query_ms": 9.0
     }
   }
 }

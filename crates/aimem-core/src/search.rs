@@ -16,6 +16,9 @@ const HYBRID_VECTOR_WEIGHT: f32 = 1.0;
 const HYBRID_KEYWORD_WEIGHT: f32 = 1.0;
 const HYBRID_CANDIDATE_MULTIPLIER: usize = 4;
 const HYBRID_MIN_CANDIDATES: usize = 12;
+const KEYWORD_FALLBACK_CANDIDATE_MULTIPLIER: usize = 64;
+const KEYWORD_FALLBACK_MIN_CANDIDATES: usize = 256;
+const KEYWORD_FALLBACK_MAX_CANDIDATES: usize = 4096;
 
 #[derive(Debug, Error)]
 pub enum SearchError {
@@ -328,24 +331,28 @@ impl Searcher {
         limit: usize,
     ) -> Result<Vec<KeywordSearchResult>, SearchError> {
         let conn = self.db.read_conn()?;
-        let like = format!("%{}%", query.replace('%', "\\%").replace('_', "\\_"));
-        let sql = build_keyword_like_sql(wing, room);
+        let candidate_limit = limit
+            .saturating_mul(KEYWORD_FALLBACK_CANDIDATE_MULTIPLIER)
+            .max(limit)
+            .max(KEYWORD_FALLBACK_MIN_CANDIDATES)
+            .min(KEYWORD_FALLBACK_MAX_CANDIDATES);
+        let sql = build_keyword_fallback_sql(wing, room);
 
         let mut rows = match (wing, room) {
             (Some(w), Some(r)) => {
-                conn.query(&sql, turso::params![like.as_str(), w, r, limit as i64])
+                conn.query(&sql, turso::params![w, r, candidate_limit as i64])
                     .await?
             }
             (Some(w), None) => {
-                conn.query(&sql, turso::params![like.as_str(), w, limit as i64])
+                conn.query(&sql, turso::params![w, candidate_limit as i64])
                     .await?
             }
             (None, Some(r)) => {
-                conn.query(&sql, turso::params![like.as_str(), r, limit as i64])
+                conn.query(&sql, turso::params![r, candidate_limit as i64])
                     .await?
             }
             (None, None) => {
-                conn.query(&sql, turso::params![like.as_str(), limit as i64])
+                conn.query(&sql, turso::params![candidate_limit as i64])
                     .await?
             }
         };
@@ -353,10 +360,10 @@ impl Searcher {
         let mut results = Vec::new();
         while let Some(row) = rows.next().await? {
             let drawer = row_to_drawer(&row)?;
-            results.push(KeywordSearchResult {
-                score: like_match_score(&drawer, query),
-                drawer,
-            });
+            let score = like_match_score(&drawer, query);
+            if score > 0.0 {
+                results.push(KeywordSearchResult { score, drawer });
+            }
         }
 
         results.sort_by(|left, right| {
@@ -424,22 +431,22 @@ fn build_keyword_fts_sql(wing: Option<&str>, room: Option<&str>) -> String {
     )
 }
 
-fn build_keyword_like_sql(wing: Option<&str>, room: Option<&str>) -> String {
+fn build_keyword_fallback_sql(wing: Option<&str>, room: Option<&str>) -> String {
     let filter = match (wing, room) {
-        (Some(_), Some(_)) => "AND wing = ?2 AND room = ?3",
-        (Some(_), None) => "AND wing = ?2",
-        (None, Some(_)) => "AND room = ?2",
+        (Some(_), Some(_)) => "WHERE wing = ?1 AND room = ?2",
+        (Some(_), None) => "WHERE wing = ?1",
+        (None, Some(_)) => "WHERE room = ?1",
         (None, None) => "",
     };
     let limit_param = match (wing, room) {
-        (Some(_), Some(_)) => "?4",
-        (Some(_), None) | (None, Some(_)) => "?3",
-        (None, None) => "?2",
+        (Some(_), Some(_)) => "?3",
+        (Some(_), None) | (None, Some(_)) => "?2",
+        (None, None) => "?1",
     };
     format!(
         "SELECT id, wing, room, content, parts, source_file, chunk_index, added_by, filed_at \
          FROM drawers \
-         WHERE content LIKE ?1 ESCAPE '\\' {filter} \
+         {filter} \
          ORDER BY filed_at DESC LIMIT {limit_param}"
     )
 }
@@ -482,7 +489,8 @@ fn fuse_hybrid_results(
             semantic_similarity: None,
             keyword_score: None,
         });
-        entry.raw_rrf += rrf_component(rank, HYBRID_KEYWORD_WEIGHT);
+        entry.raw_rrf +=
+            rrf_component(rank, HYBRID_KEYWORD_WEIGHT) * keyword_score_multiplier(score);
         entry.keyword_score = Some(
             entry
                 .keyword_score
@@ -548,17 +556,28 @@ fn rrf_component(rank: usize, weight: f32) -> f32 {
     weight / (HYBRID_RRF_K + rank as f32 + 1.0)
 }
 
+fn keyword_score_multiplier(score: f32) -> f32 {
+    1.0 + (score / (score + 1.0)).clamp(0.0, 1.0)
+}
+
 fn keyword_tokens(query: &str) -> Vec<String> {
-    let mut tokens = query
+    let normalized = normalize_keyword_text(query);
+    let mut tokens = normalized
         .split_whitespace()
         .map(|part| {
-            part.trim_matches(|c: char| !c.is_alphanumeric() && c != '_' && c != '-')
-                .to_ascii_lowercase()
+            part.trim_matches(|c: char| !is_keyword_char(c) && c != '_' && c != '-')
+                .to_string()
         })
         .filter(|part| part.len() >= 2)
         .collect::<Vec<_>>();
+
+    let compact = compact_keyword_text(&normalized);
+    if contains_cjk_or_kana(&compact) {
+        tokens.extend(char_ngrams(&compact, 2));
+        tokens.extend(char_ngrams(&compact, 3));
+    }
+
     if tokens.is_empty() {
-        let compact = query.trim().to_ascii_lowercase();
         if !compact.is_empty() {
             tokens.push(compact);
         }
@@ -569,15 +588,18 @@ fn keyword_tokens(query: &str) -> Vec<String> {
 }
 
 fn like_match_score(drawer: &Drawer, query: &str) -> f32 {
-    let haystack = format!(
+    let raw_haystack = format!(
         "{}\n{}\n{}\n{}",
         drawer.content,
         drawer.wing,
         drawer.room,
         drawer.source_file.as_deref().unwrap_or("")
-    )
-    .to_ascii_lowercase();
-    let normalized_query = query.trim().to_ascii_lowercase();
+    );
+    let haystack = normalize_keyword_text(&raw_haystack);
+    let haystack_compact = compact_keyword_text(&haystack);
+    let normalized_query = normalize_keyword_text(query);
+    let normalized_query = normalized_query.trim();
+    let query_compact = compact_keyword_text(normalized_query);
     let tokens = keyword_tokens(query);
 
     let mut score = 0.0;
@@ -593,7 +615,68 @@ fn like_match_score(drawer: &Drawer, query: &str) -> f32 {
         score += hits / tokens.len() as f32;
     }
 
+    score += ngram_overlap_score(&query_compact, &haystack_compact, 2).max(ngram_overlap_score(
+        &query_compact,
+        &haystack_compact,
+        3,
+    ));
+
     score
+}
+
+fn normalize_keyword_text(text: &str) -> String {
+    text.chars()
+        .flat_map(|ch| ch.to_lowercase())
+        .map(|ch| if is_keyword_char(ch) { ch } else { ' ' })
+        .collect::<String>()
+}
+
+fn compact_keyword_text(text: &str) -> String {
+    text.chars().filter(|ch| is_keyword_char(*ch)).collect()
+}
+
+fn is_keyword_char(ch: char) -> bool {
+    ch.is_alphanumeric() || contains_cjk_or_kana_char(ch)
+}
+
+fn contains_cjk_or_kana(text: &str) -> bool {
+    text.chars().any(contains_cjk_or_kana_char)
+}
+
+fn contains_cjk_or_kana_char(ch: char) -> bool {
+    matches!(
+        ch as u32,
+        0x3040..=0x309F // Hiragana
+            | 0x30A0..=0x30FF // Katakana
+            | 0x3400..=0x4DBF // CJK Extension A
+            | 0x4E00..=0x9FFF // CJK Unified Ideographs
+            | 0xF900..=0xFAFF // CJK Compatibility Ideographs
+            | 0xFF66..=0xFF9F // Halfwidth Katakana
+    )
+}
+
+fn char_ngrams(text: &str, n: usize) -> Vec<String> {
+    let chars = text.chars().collect::<Vec<_>>();
+    if n == 0 || chars.len() < n {
+        return Vec::new();
+    }
+    chars
+        .windows(n)
+        .map(|window| window.iter().collect())
+        .collect()
+}
+
+fn ngram_overlap_score(query: &str, haystack: &str, n: usize) -> f32 {
+    let query_ngrams = char_ngrams(query, n);
+    if query_ngrams.is_empty() {
+        return 0.0;
+    }
+    let haystack_ngrams = char_ngrams(haystack, n).into_iter().collect::<HashSet<_>>();
+    let hits = query_ngrams
+        .iter()
+        .filter(|gram| haystack_ngrams.contains(*gram))
+        .count() as f32;
+    hits / query_ngrams.len() as f32
 }
 
 fn should_fallback_to_like_search(err: &SearchError) -> bool {
@@ -772,6 +855,82 @@ mod tests {
         assert_eq!(
             hits.first().map(|hit| hit.drawer.id.as_str()),
             Some("drawer_keyword")
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn keyword_search_scored_uses_cjk_ngram_fallback_when_fts_has_no_phrase_hit()
+    -> anyhow::Result<()> {
+        let db = AimemDb::memory().await?;
+        let target = Drawer::new(
+            "drawer_cjk_target",
+            "attachments",
+            "subject-1",
+            "文档里的项目代号是青竹。",
+            "tester",
+        );
+        db.insert_drawer(&target, None).await?;
+        let distractor = Drawer::new(
+            "drawer_cjk_distractor",
+            "attachments",
+            "subject-1",
+            "扫描PDF里的预约时间是6月18日早上九点半。",
+            "tester",
+        );
+        db.insert_drawer(&distractor, None).await?;
+
+        let searcher = Searcher::keyword_only(db);
+        let hits = searcher
+            .keyword_search_scored(
+                "文档里的项目代号是什么？",
+                Some("attachments"),
+                Some("subject-1"),
+                5,
+            )
+            .await?;
+
+        assert_eq!(
+            hits.first().map(|hit| hit.drawer.id.as_str()),
+            Some("drawer_cjk_target")
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn keyword_search_scored_uses_japanese_ngram_fallback_when_fts_has_no_phrase_hit()
+    -> anyhow::Result<()> {
+        let db = AimemDb::memory().await?;
+        let target = Drawer::new(
+            "drawer_ja_target",
+            "attachments",
+            "subject-1",
+            "資料のプロジェクト名は北風ノート。",
+            "tester",
+        );
+        db.insert_drawer(&target, None).await?;
+        let distractor = Drawer::new(
+            "drawer_ja_distractor",
+            "attachments",
+            "subject-1",
+            "レシートのアレルギー欄にはピーナッツ抜きと書かれている。",
+            "tester",
+        );
+        db.insert_drawer(&distractor, None).await?;
+
+        let searcher = Searcher::keyword_only(db);
+        let hits = searcher
+            .keyword_search_scored(
+                "資料のプロジェクト名は何ですか？",
+                Some("attachments"),
+                Some("subject-1"),
+                5,
+            )
+            .await?;
+
+        assert_eq!(
+            hits.first().map(|hit| hit.drawer.id.as_str()),
+            Some("drawer_ja_target")
         );
         Ok(())
     }

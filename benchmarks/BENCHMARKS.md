@@ -63,7 +63,7 @@ Current micro results:
 
 | Dataset | Mode | R@1 | R@5 | Note |
 |---|---:|---:|---:|---|
-| `tri_memory_micro` | keyword-only | 0.333 | 0.333 | English-only wins; CJK has no useful keyword hits yet. |
+| `tri_memory_micro` | keyword-only | 1.000 | 1.000 | Unicode/CJK n-gram fallback is active. |
 | `tri_memory_micro` | hybrid | 1.000 | 1.000 | Tiny smoke fixture, not a public quality claim. |
-| `multimodal_truth_micro` | keyword-only | 0.333 | 0.333 | Same CJK keyword/tokenization gap. |
-| `multimodal_truth_micro` | hybrid | 0.778 | 1.000 | CJK document questions are found by top-5, not always rank 1. |
+| `multimodal_truth_micro` | keyword-only | 1.000 | 1.000 | Post-extraction attachment truth text is retrievable without embeddings. |
+| `multimodal_truth_micro` | hybrid | 1.000 | 1.000 | Keyword score now participates in hybrid ordering instead of rank-only RRF. |
