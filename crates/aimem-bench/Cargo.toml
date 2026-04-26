@@ -1,0 +1,18 @@
+[package]
+name = "aimem-bench"
+version = "0.0.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+aimem-core.workspace = true
+anyhow.workspace = true
+chrono.workspace = true
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tempfile = "3"
+tokio.workspace = true

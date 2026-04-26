@@ -77,6 +77,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "aimem-bench"
+version = "0.0.0"
+dependencies = [
+ "aimem-core",
+ "anyhow",
+ "chrono",
+ "clap",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
 name = "aimem-cli"
 version = "0.3.8"
 dependencies = [

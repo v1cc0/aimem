@@ -4,6 +4,7 @@ members = [
   "crates/aimem-core",
   "crates/aimem-cli",
   "crates/aimem-mcp",
+  "crates/aimem-bench",
 ]
 
 [workspace.package]

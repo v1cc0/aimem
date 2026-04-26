@@ -1,0 +1,93 @@
+{
+  "questions": 9,
+  "mode": "hybrid",
+  "embed_provider": "fastembed",
+  "embed_model": "all-MiniLM-L6-v2",
+  "top_k": 10,
+  "overall": {
+    "count": 9,
+    "recall_at_1": 1.0,
+    "recall_at_5": 1.0,
+    "recall_at_10": 1.0,
+    "mrr_at_10": 1.0,
+    "ndcg_at_10": 1.0,
+    "avg_ingest_ms": 101.0,
+    "avg_query_ms": 8.88888888888889
+  },
+  "by_language": {
+    "en": {
+      "count": 3,
+      "recall_at_1": 1.0,
+      "recall_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "mrr_at_10": 1.0,
+      "ndcg_at_10": 1.0,
+      "avg_ingest_ms": 99.33333333333333,
+      "avg_query_ms": 8.666666666666666
+    },
+    "ja": {
+      "count": 3,
+      "recall_at_1": 1.0,
+      "recall_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "mrr_at_10": 1.0,
+      "ndcg_at_10": 1.0,
+      "avg_ingest_ms": 102.66666666666667,
+      "avg_query_ms": 9.333333333333334
+    },
+    "zh": {
+      "count": 3,
+      "recall_at_1": 1.0,
+      "recall_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "mrr_at_10": 1.0,
+      "ndcg_at_10": 1.0,
+      "avg_ingest_ms": 101.0,
+      "avg_query_ms": 8.666666666666666
+    }
+  },
+  "by_modality": {
+    "text": {
+      "count": 9,
+      "recall_at_1": 1.0,
+      "recall_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "mrr_at_10": 1.0,
+      "ndcg_at_10": 1.0,
+      "avg_ingest_ms": 101.0,
+      "avg_query_ms": 8.88888888888889
+    }
+  },
+  "by_question_type": {
+    "preference": {
+      "count": 3,
+      "recall_at_1": 1.0,
+      "recall_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "mrr_at_10": 1.0,
+      "ndcg_at_10": 1.0,
+      "avg_ingest_ms": 100.66666666666667,
+      "avg_query_ms": 9.0
+    },
+    "single_session_assistant": {
+      "count": 3,
+      "recall_at_1": 1.0,
+      "recall_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "mrr_at_10": 1.0,
+      "ndcg_at_10": 1.0,
+      "avg_ingest_ms": 102.0,
+      "avg_query_ms": 9.333333333333334
+    },
+    "single_session_user": {
+      "count": 3,
+      "recall_at_1": 1.0,
+      "recall_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "mrr_at_10": 1.0,
+      "ndcg_at_10": 1.0,
+      "avg_ingest_ms": 100.33333333333333,
+      "avg_query_ms": 8.333333333333334
+    }
+  }
+}

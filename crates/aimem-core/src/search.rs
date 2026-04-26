@@ -282,7 +282,10 @@ impl Searcher {
         room: Option<&str>,
         limit: usize,
     ) -> Result<Vec<KeywordSearchResult>, SearchError> {
-        let conn = self.db.read_conn()?;
+        // Turso's FTS/custom-index path may perform internal index work while
+        // evaluating fts_match/fts_score, so it cannot run on the query_only
+        // read connection even though this is logically a read query.
+        let conn = self.db.conn()?;
         let sql = build_keyword_fts_sql(wing, room);
 
         let mut rows = match (wing, room) {
