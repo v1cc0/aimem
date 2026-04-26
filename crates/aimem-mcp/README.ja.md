@@ -32,3 +32,4 @@ aimem-mcp
 
 - `aimem_status` は embedding profile も返します。
 - `aimem_search` は embedder が使える場合に hybrid キーワード + ベクトル検索を使います。
+- デフォルト DB は `~/.aimem/aimem.db` で、Turso が隣に `.db-wal` / `.db-tshm` sidecar を作成することがあります。

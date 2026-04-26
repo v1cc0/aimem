@@ -7,6 +7,7 @@
 It provides:
 
 - Turso-backed storage
+- multiprocess WAL coordination for file-backed stores (`.db-tshm` sidecar)
 - project mining and conversation import
 - hybrid keyword + vector retrieval
 - memory layers / wake-up context generation
@@ -249,6 +250,7 @@ println!("{id}");
 ## Notes
 
 - `AimemDb::open()` bootstraps schema automatically.
+- File-backed `AimemDb::open()` enables Turso multiprocess WAL coordination and may create `.db-wal` / `.db-tshm` sidecars beside the DB file.
 - `Miner::new(db, None)` and `ConvoMiner::new(db, None)` work fine for text-only filing.
 - drawers without embeddings still appear in keyword / fallback search.
 - `AimemDb::embedding_profile()` reports the current store profile.

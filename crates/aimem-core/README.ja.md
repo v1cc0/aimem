@@ -7,6 +7,7 @@
 提供機能：
 
 - Turso ベースの保存
+- ファイル backed store の Turso multiprocess WAL coordination（`.db-tshm` sidecar）
 - プロジェクトマイニングと会話インポート
 - hybrid キーワード + ベクトル検索
 - memory layers / wake-up context

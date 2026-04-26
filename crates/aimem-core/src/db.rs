@@ -176,6 +176,7 @@ impl AimemDb {
         let path_str = path.to_string_lossy();
         let db = Builder::new_local(path_str.as_ref())
             .experimental_index_method(true)
+            .experimental_multiprocess_wal(true)
             .build()
             .await?;
         let bootstrap_conn = db.connect()?;
@@ -1005,5 +1006,23 @@ mod tests {
                 || msg.contains("query_only"),
             "expected readonly/query_only error, got {err:?}"
         );
+    }
+
+    #[tokio::test]
+    #[cfg(all(unix, target_pointer_width = "64"))]
+    async fn file_database_uses_turso_multiprocess_wal_sidecar() {
+        let temp_dir = tempfile::tempdir().expect("temp dir should create");
+        let db_path = temp_dir.path().join("aimem.db");
+
+        let db = AimemDb::open(&db_path)
+            .await
+            .expect("file db should open with multiprocess WAL");
+
+        assert!(
+            db_path.with_extension("db-tshm").exists(),
+            "file-backed AimemDb should create Turso .tshm sidecar for multiprocess WAL"
+        );
+
+        drop(db);
     }
 }

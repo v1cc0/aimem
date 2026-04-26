@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.3.8] - 2026-04-26
+
+### Changed
+- Upgraded the workspace Turso stack from `0.6.0-pre.18` to `0.6.0-pre.22`.
+- File-backed `AimemDb::open(...)` now enables Turso's experimental multiprocess WAL coordination, creating a `.db-tshm` sidecar next to the database for cross-process WAL readers/writers.
+- Kept the existing FTS-compatible regular write transaction path (`BEGIN IMMEDIATE`) instead of reintroducing MVCC / `BEGIN CONCURRENT`, because Turso custom index modules are still the constraint for AiMem hybrid search.
+
+### Tests
+- Added regression coverage proving a file-backed AiMem database creates the Turso `.db-tshm` sidecar on supported Unix targets.
+
 ## [0.3.7] - 2026-04-18
 
 ### Added

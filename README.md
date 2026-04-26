@@ -53,6 +53,7 @@ crates/
 ## Highlights
 
 - one local Turso DB file: `~/.aimem/aimem.db`
+- file-backed stores use Turso multiprocess WAL coordination and may create `.db-wal` / `.db-tshm` sidecars
 - hybrid keyword + vector retrieval
 - project mining and conversation mining
 - 4-layer wake-up memory stack

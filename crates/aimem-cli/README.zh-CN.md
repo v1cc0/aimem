@@ -41,4 +41,4 @@ aimem search "hybrid search" --gemini-key "$GEMINI_API_KEY"
 - `aimem status` 会显示当前 embedding profile。
 - `aimem search` / `aimem mine` 可使用 `--gemini-key` 或 `GEMINI_API_KEY`。
 - 当 embedder 可用时，`aimem search` 会走 hybrid 关键词 + 向量排序。
-- 默认 DB 路径是 `~/.aimem/aimem.db`。
+- 默认 DB 路径是 `~/.aimem/aimem.db`；Turso 可能在旁边创建 `.db-wal` / `.db-tshm` sidecar。

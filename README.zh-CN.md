@@ -49,6 +49,7 @@ crates/
 ## 核心特点
 
 - 单一本地 Turso DB：`~/.aimem/aimem.db`
+- 文件型 store 使用 Turso multiprocess WAL 协调，旁边可能出现 `.db-wal` / `.db-tshm` sidecar
 - hybrid 关键词 + 向量检索
 - 项目挖掘与会话导入
 - 4 层 wake-up memory stack

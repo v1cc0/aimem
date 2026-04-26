@@ -7,6 +7,7 @@
 它提供：
 
 - 基于 Turso 的存储
+- 文件型 store 的 Turso multiprocess WAL 协调（`.db-tshm` sidecar）
 - 项目挖掘与会话导入
 - hybrid 关键词 + 向量检索
 - memory layers / wake-up context
@@ -249,6 +250,7 @@ println!("{id}");
 ## 注意事项
 
 - `AimemDb::open()` 会自动建表。
+- 文件型 `AimemDb::open()` 会启用 Turso multiprocess WAL 协调，DB 文件旁边可能出现 `.db-wal` / `.db-tshm` sidecar。
 - `Miner::new(db, None)` / `ConvoMiner::new(db, None)` 适合 text-only 落库。
 - 没有 embedding 的 drawer 依然能参与关键词 / fallback 搜索。
 - `AimemDb::embedding_profile()` 可查看当前 store profile。

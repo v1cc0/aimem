@@ -32,4 +32,4 @@ aimem-mcp
 
 - `aimem_status` reports the current embedding profile.
 - `aimem_search` uses hybrid keyword + vector ranking when an embedder is available and falls back to keyword search otherwise.
-- default DB path is `~/.aimem/aimem.db`.
+- default DB path is `~/.aimem/aimem.db`; Turso may create `.db-wal` / `.db-tshm` sidecars next to it.

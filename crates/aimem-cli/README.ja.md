@@ -38,3 +38,4 @@ aimem search "hybrid search" --gemini-key "$GEMINI_API_KEY"
 ## メモ
 
 - `aimem search` は embedder が使える場合に hybrid キーワード + ベクトル順位付けを使います。
+- デフォルト DB は `~/.aimem/aimem.db` で、Turso が隣に `.db-wal` / `.db-tshm` sidecar を作成することがあります。
