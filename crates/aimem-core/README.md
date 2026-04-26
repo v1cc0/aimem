@@ -14,6 +14,8 @@ It provides:
 - knowledge graph support
 - embedding profile guards
 - multimodal content primitives
+- Unicode/CJK/Kana-aware keyword fallback for Chinese and Japanese retrieval
+- reproducible text and deterministic multimodal truth benchmarks in the repository
 
 CLI lives in `aimem-cli`. MCP server lives in `aimem-mcp`.
 
@@ -35,6 +37,8 @@ Current `aimem-core` includes:
 - `MemoryStack::file_drawer_with_id(...)`
 - `MemoryStack::file_drawers_with_ids(...)`
 - Turso FTS + RRF-based hybrid search
+- CJK/Japanese keyword fallback for no-embedding search
+- reproducible EN/ZH/JA benchmark fixtures and result snapshots
 - tighter extractor heuristics with multilingual regression tests
 
 ## Install

@@ -32,4 +32,5 @@ aimem-mcp
 
 - `aimem_status` reports the current embedding profile.
 - `aimem_search` uses hybrid keyword + vector ranking when an embedder is available and falls back to keyword search otherwise.
+- Keyword fallback includes Unicode/CJK/Kana n-gram scoring for Chinese and Japanese queries.
 - default DB path is `~/.aimem/aimem.db`; Turso may create `.db-wal` / `.db-tshm` sidecars next to it.

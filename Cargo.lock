@@ -92,7 +92,7 @@ dependencies = [
 
 [[package]]
 name = "aimem-cli"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "aimem-core",
  "anyhow",
@@ -105,7 +105,7 @@ dependencies = [
 
 [[package]]
 name = "aimem-core"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -129,7 +129,7 @@ dependencies = [
 
 [[package]]
 name = "aimem-mcp"
-version = "0.3.8"
+version = "0.3.9"
 dependencies = [
  "aimem-core",
  "anyhow",

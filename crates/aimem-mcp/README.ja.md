@@ -32,4 +32,5 @@ aimem-mcp
 
 - `aimem_status` は embedding profile も返します。
 - `aimem_search` は embedder が使える場合に hybrid キーワード + ベクトル検索を使います。
+- keyword fallback は中国語 / 日本語クエリ向けの Unicode / CJK / Kana n-gram scoring を含みます。
 - デフォルト DB は `~/.aimem/aimem.db` で、Turso が隣に `.db-wal` / `.db-tshm` sidecar を作成することがあります。

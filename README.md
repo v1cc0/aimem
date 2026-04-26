@@ -37,6 +37,8 @@ The `0.3.x` line introduced the main architectural improvements that were missin
 - `MemoryStack::file_drawer_with_id(...)`
 - `MemoryStack::file_drawers_with_ids(...)`
 - hybrid keyword + vector search via Turso FTS + RRF fusion
+- Unicode/CJK/Kana-aware keyword fallback for Chinese and Japanese retrieval
+- reproducible EN/ZH/JA text and deterministic multimodal truth benchmarks under `benchmarks/`
 - CLI / MCP status now showing embedding profile
 - tighter extractor heuristics with multilingual regression tests
 - CI dependency auditing via `cargo audit`
@@ -55,6 +57,8 @@ crates/
 - one local Turso DB file: `~/.aimem/aimem.db`
 - file-backed stores use Turso multiprocess WAL coordination and may create `.db-wal` / `.db-tshm` sidecars
 - hybrid keyword + vector retrieval
+- CJK/Japanese keyword fallback for no-embedding search
+- reproducible memory benchmarks
 - project mining and conversation mining
 - 4-layer wake-up memory stack
 - multimodal content model

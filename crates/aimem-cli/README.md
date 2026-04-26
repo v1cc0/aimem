@@ -40,4 +40,5 @@ aimem search "hybrid search" --gemini-key "$GEMINI_API_KEY"
 - `aimem status` shows the current embedding profile.
 - `aimem search` and `aimem mine` can use `--gemini-key` or `GEMINI_API_KEY`.
 - `aimem search` uses hybrid keyword + vector ranking when an embedder is available.
+- Keyword-only fallback now includes Unicode/CJK/Kana n-gram scoring for Chinese and Japanese queries.
 - default DB path is `~/.aimem/aimem.db`; Turso may create `.db-wal` / `.db-tshm` sidecars next to it.

@@ -33,6 +33,8 @@ AiMem 是面向 AI agent 的 Rust-first 本地记忆基础设施。
 - `MemoryStack::file_drawer_with_id(...)`
 - `MemoryStack::file_drawers_with_ids(...)`
 - 基于 Turso FTS + RRF 融合的 hybrid 检索
+- 面向中文 / 日文检索的 Unicode / CJK / Kana keyword fallback
+- `benchmarks/` 下可复现的英 / 中 / 日文本与确定性多模态 truth benchmark
 - CLI / MCP status 暴露 embedding profile
 - 收窄后的 extractor 与多语言回归测试
 - CI 中的 `cargo audit`
@@ -51,6 +53,8 @@ crates/
 - 单一本地 Turso DB：`~/.aimem/aimem.db`
 - 文件型 store 使用 Turso multiprocess WAL 协调，旁边可能出现 `.db-wal` / `.db-tshm` sidecar
 - hybrid 关键词 + 向量检索
+- 不使用 embedding 时的 CJK / 日文 keyword fallback
+- 可复现 memory benchmark
 - 项目挖掘与会话导入
 - 4 层 wake-up memory stack
 - 多模态内容模型

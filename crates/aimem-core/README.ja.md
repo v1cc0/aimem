@@ -14,6 +14,8 @@
 - 知識グラフ
 - embedding profile guard
 - マルチモーダル `ContentPart`
+- 中国語 / 日本語検索向けの Unicode / CJK / Kana keyword fallback
+- リポジトリ内の再現可能なテキストおよび deterministic multimodal truth benchmark
 
 ## 0.3.x の主な点
 
@@ -27,6 +29,8 @@
 - `MemoryStack::file_drawer_with_id(...)`
 - `MemoryStack::file_drawers_with_ids(...)`
 - Turso FTS + RRF ベースの hybrid 検索
+- embedding なし検索向けの CJK / 日本語 keyword fallback
+- 再現可能な EN/ZH/JA benchmark fixtures と result snapshots
 - extractor の回帰テスト強化
 
 ## インストール

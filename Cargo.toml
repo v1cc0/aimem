@@ -8,7 +8,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.3.8"
+version = "0.3.9"
 edition = "2024"
 rust-version = "1.85"
 license = "MIT"
@@ -17,7 +17,7 @@ homepage = "https://github.com/v1cc0/aimem"
 repository = "https://github.com/v1cc0/aimem"
 
 [workspace.dependencies]
-aimem-core = { version = "0.3.8", path = "crates/aimem-core" }
+aimem-core = { version = "0.3.9", path = "crates/aimem-core" }
 
 # Turso — crates.io latest verified on 2026-04-26 via `cargo info turso`
 turso = { version = "0.6.0-pre.22", default-features = false }

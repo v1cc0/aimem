@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.3.9] - 2026-04-26
+
+### Added
+- Added the non-published `aimem-bench` workspace crate with reproducible JSONL benchmark output and aggregate summary metrics.
+- Added committed English / Chinese / Japanese micro fixtures for text memory retrieval and deterministic multimodal truth-text retrieval.
+- Added benchmark reproduction commands in `benchmarks/BENCHMARKS.md` plus committed per-question result snapshots.
+
+### Fixed
+- Improved keyword-only search for Chinese and Japanese by adding a bounded Unicode/CJK/Kana n-gram fallback scorer when the Turso FTS path has no useful phrase hit.
+- Improved hybrid ordering by letting keyword score strength affect the keyword-side RRF contribution, so weak lexical overlap no longer ranks the same as strong lexical evidence when semantic ranks are close.
+- Kept Turso FTS/custom-index search on a normal connection instead of the `query_only` read connection, matching the current runtime behavior required by Turso's FTS index method.
+
+### Benchmarks
+- `tri_memory_micro`: keyword-only and hybrid both reproduce at `R@1=1.000`, `R@5=1.000`.
+- `multimodal_truth_micro`: keyword-only and hybrid both reproduce at `R@1=1.000`, `R@5=1.000`.
+
 ## [0.3.8] - 2026-04-26
 
 ### Changed

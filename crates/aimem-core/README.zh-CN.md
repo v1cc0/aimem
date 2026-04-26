@@ -14,6 +14,8 @@
 - 知识图谱
 - embedding profile guard
 - 多模态内容原语
+- 面向中文 / 日文检索的 Unicode / CJK / Kana keyword fallback
+- 仓库内可复现的文本与确定性多模态 truth benchmark
 
 CLI 在 `aimem-cli`，MCP server 在 `aimem-mcp`。
 
@@ -35,6 +37,8 @@ CLI 在 `aimem-cli`，MCP server 在 `aimem-mcp`。
 - `MemoryStack::file_drawer_with_id(...)`
 - `MemoryStack::file_drawers_with_ids(...)`
 - 基于 Turso FTS + RRF 的 hybrid 检索
+- 不使用 embedding 时的 CJK / 日文 keyword fallback
+- 可复现的英 / 中 / 日 benchmark fixtures 与 result snapshots
 - 收窄后的 extractor 与多语言回归测试
 
 ## 安装
