@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
+use std::fs;
 use std::io::{self, BufRead, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use aimem_core::{
@@ -294,12 +295,21 @@ impl ServerState {
 
     async fn tool_codex_record_repo(&self, arguments: &Map<String, Value>) -> Result<Value> {
         let repo_path = required_str(arguments, "repo_path")?;
+        let detected = detect_repo_profile(repo_path);
+        let profile = merge_detected_repo_profile(arguments, detected);
         let filed_at = Utc::now().to_rfc3339();
         let content = format_codex_card(
             "repo_profile",
             repo_path,
-            arguments,
-            &["repo_name", "git_remote", "git_head", "language", "summary"],
+            &profile,
+            &[
+                "repo_name",
+                "repo_root",
+                "git_remote",
+                "git_head",
+                "language",
+                "summary",
+            ],
             &filed_at,
         );
         let id = codex_stable_id("repo", repo_path);
@@ -828,7 +838,10 @@ fn tool_specs() -> Vec<Value> {
                     "git_remote": { "type": "string" },
                     "git_head": { "type": "string" },
                     "language": { "type": "string" },
-                    "summary": { "type": "string" }
+                    "summary": { "type": "string" },
+                    "repo_root": { "type": "string", "description": "Optional override; otherwise conservatively detected from repo_path." },
+                    "manifests": { "type": "array", "items": { "type": "string" } },
+                    "test_commands": { "type": "array", "items": { "type": "string" } }
                 },
                 "required": ["repo_path"]
             }),
@@ -966,6 +979,201 @@ fn hybrid_search_result_to_json(result: HybridSearchResult) -> Value {
     })
 }
 
+fn detect_repo_profile(repo_path: &str) -> Map<String, Value> {
+    let mut profile = Map::new();
+    let Some(root) = detect_repo_root(Path::new(repo_path)) else {
+        return profile;
+    };
+
+    profile.insert(
+        "repo_root".to_string(),
+        Value::String(root.display().to_string()),
+    );
+    if let Some(name) = root.file_name().and_then(|name| name.to_str()) {
+        profile.insert("repo_name".to_string(), Value::String(name.to_string()));
+    }
+
+    let manifests = detect_manifests(&root);
+    if !manifests.is_empty() {
+        profile.insert(
+            "manifests".to_string(),
+            Value::Array(manifests.iter().cloned().map(Value::String).collect()),
+        );
+    }
+    if let Some(language) = detect_language(&manifests) {
+        profile.insert("language".to_string(), Value::String(language.to_string()));
+    }
+    let test_commands = detect_test_commands(&manifests);
+    if !test_commands.is_empty() {
+        profile.insert(
+            "test_commands".to_string(),
+            Value::Array(test_commands.into_iter().map(Value::String).collect()),
+        );
+    }
+
+    if let Some(git_head) = read_git_head(&root) {
+        profile.insert("git_head".to_string(), Value::String(git_head));
+    }
+    if let Some(remote) = read_git_remote(&root) {
+        profile.insert("git_remote".to_string(), Value::String(remote));
+    }
+
+    profile
+}
+
+fn merge_detected_repo_profile(
+    arguments: &Map<String, Value>,
+    mut detected: Map<String, Value>,
+) -> Map<String, Value> {
+    for (key, value) in arguments {
+        detected.insert(key.clone(), value.clone());
+    }
+    detected
+}
+
+fn detect_repo_root(path: &Path) -> Option<PathBuf> {
+    let mut current = if path.is_dir() {
+        path.to_path_buf()
+    } else {
+        path.parent()?.to_path_buf()
+    };
+
+    loop {
+        if current.join(".git").exists() || has_known_manifest(&current) {
+            return Some(current);
+        }
+        if !current.pop() {
+            return None;
+        }
+    }
+}
+
+fn has_known_manifest(dir: &Path) -> bool {
+    [
+        "Cargo.toml",
+        "package.json",
+        "pyproject.toml",
+        "go.mod",
+        "pom.xml",
+        "build.gradle",
+        "settings.gradle",
+        "deno.json",
+    ]
+    .iter()
+    .any(|name| dir.join(name).is_file())
+}
+
+fn detect_manifests(root: &Path) -> Vec<String> {
+    [
+        "Cargo.toml",
+        "package.json",
+        "pnpm-lock.yaml",
+        "yarn.lock",
+        "package-lock.json",
+        "pyproject.toml",
+        "go.mod",
+        "pom.xml",
+        "build.gradle",
+        "settings.gradle",
+        "deno.json",
+    ]
+    .iter()
+    .filter(|name| root.join(name).is_file())
+    .map(|name| name.to_string())
+    .collect()
+}
+
+fn detect_language(manifests: &[String]) -> Option<&'static str> {
+    if manifests.iter().any(|item| item == "Cargo.toml") {
+        Some("rust")
+    } else if manifests.iter().any(|item| item == "package.json") {
+        Some("javascript/typescript")
+    } else if manifests.iter().any(|item| item == "pyproject.toml") {
+        Some("python")
+    } else if manifests.iter().any(|item| item == "go.mod") {
+        Some("go")
+    } else if manifests.iter().any(|item| {
+        matches!(
+            item.as_str(),
+            "pom.xml" | "build.gradle" | "settings.gradle"
+        )
+    }) {
+        Some("jvm")
+    } else if manifests.iter().any(|item| item == "deno.json") {
+        Some("deno")
+    } else {
+        None
+    }
+}
+
+fn detect_test_commands(manifests: &[String]) -> Vec<String> {
+    let mut commands = Vec::new();
+    if manifests.iter().any(|item| item == "Cargo.toml") {
+        commands.push("cargo test".to_string());
+    }
+    if manifests.iter().any(|item| item == "package.json") {
+        commands.push("npm test".to_string());
+    }
+    if manifests.iter().any(|item| item == "pnpm-lock.yaml") {
+        commands.push("pnpm test".to_string());
+    }
+    if manifests.iter().any(|item| item == "pyproject.toml") {
+        commands.push("pytest".to_string());
+    }
+    if manifests.iter().any(|item| item == "go.mod") {
+        commands.push("go test ./...".to_string());
+    }
+    if manifests.iter().any(|item| item == "pom.xml") {
+        commands.push("mvn test".to_string());
+    }
+    if manifests
+        .iter()
+        .any(|item| matches!(item.as_str(), "build.gradle" | "settings.gradle"))
+    {
+        commands.push("gradle test".to_string());
+    }
+    if manifests.iter().any(|item| item == "deno.json") {
+        commands.push("deno test".to_string());
+    }
+    commands
+}
+
+fn read_git_head(root: &Path) -> Option<String> {
+    let git = root.join(".git");
+    let head_path = if git.is_dir() {
+        git.join("HEAD")
+    } else {
+        return None;
+    };
+    let head = fs::read_to_string(head_path).ok()?;
+    let head = head.trim();
+    if let Some(reference) = head.strip_prefix("ref: ") {
+        let hash = fs::read_to_string(git.join(reference)).ok();
+        if let Some(hash) = hash {
+            return Some(format!("{} {}", reference, hash.trim()));
+        }
+    }
+    Some(head.to_string())
+}
+
+fn read_git_remote(root: &Path) -> Option<String> {
+    let config = fs::read_to_string(root.join(".git").join("config")).ok()?;
+    let mut in_origin = false;
+    for line in config.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with('[') {
+            in_origin = trimmed == r#"[remote "origin"]"#;
+            continue;
+        }
+        if in_origin {
+            if let Some(url) = trimmed.strip_prefix("url =") {
+                return Some(url.trim().to_string());
+            }
+        }
+    }
+    None
+}
+
 fn required_str<'a>(arguments: &'a Map<String, Value>, key: &str) -> Result<&'a str> {
     arguments
         .get(key)
@@ -1028,7 +1236,13 @@ fn format_codex_card(
         }
     }
 
-    for key in ["tags", "source_files", "commands"] {
+    for key in [
+        "tags",
+        "source_files",
+        "commands",
+        "manifests",
+        "test_commands",
+    ] {
         if let Some(items) = string_array(arguments.get(key)) {
             if !items.is_empty() {
                 lines.push(format!("{key}:"));
@@ -1394,6 +1608,40 @@ mod tests {
         );
     }
 
+    #[tokio::test]
+    async fn codex_record_repo_detects_conservative_repo_profile() {
+        let state = test_state("codex-repo-detect").await;
+        let (db_path, _) = test_paths("codex-repo-detect-fixture");
+        let root = db_path.parent().expect("temp dir").join("repo");
+        fs::create_dir_all(root.join(".git").join("refs").join("heads")).expect("create git dirs");
+        fs::write(root.join("Cargo.toml"), "[package]\nname = \"demo\"\n").expect("write manifest");
+        fs::write(root.join(".git").join("HEAD"), "ref: refs/heads/main\n").expect("write head");
+        fs::write(
+            root.join(".git").join("refs").join("heads").join("main"),
+            "0123456789abcdef0123456789abcdef01234567\n",
+        )
+        .expect("write ref");
+        fs::write(
+            root.join(".git").join("config"),
+            "[remote \"origin\"]\n\turl = git@example.test:demo/repo.git\n",
+        )
+        .expect("write config");
+
+        let parsed = call_tool(
+            &state,
+            "codex_record_repo",
+            json!({ "repo_path": root.join("src").display().to_string() }),
+        )
+        .await;
+        let content = parsed["drawer"]["content"].as_str().expect("content");
+
+        assert!(content.contains("repo_root:"));
+        assert!(content.contains("language: rust"));
+        assert!(content.contains("git_remote: git@example.test:demo/repo.git"));
+        assert!(content.contains("refs/heads/main"));
+        assert!(content.contains("manifests:\n  - Cargo.toml"));
+        assert!(content.contains("test_commands:\n  - cargo test"));
+    }
     #[tokio::test]
     async fn codex_record_and_search_experience() {
         let state = test_state("codex-experience").await;
