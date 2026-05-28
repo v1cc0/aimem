@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-05-29
+
 ### Added
 - Added private Codex MCP tools to `aimem-mcp`: `codex_record_repo`, `codex_record_experience`, `codex_search_experience`, and `codex_context`. These tools reuse the local AiMem DB for explicit repo profiles and compact coding-experience cards; `codex_record_repo` performs conservative detection around the explicit `repo_path`, but does not crawl the filesystem or ingest transcripts automatically.
 - Added stable repo/kind/problem/solution fingerprints for `codex_record_experience` duplicate detection so timestamped card content does not create repeat records for the same lesson.
