@@ -362,16 +362,16 @@ impl ServerState {
             ],
             &filed_at,
         );
-        let duplicate = self.db.find_drawers_by_exact_content(&content, 1).await?;
-        if let Some(existing) = duplicate.into_iter().next() {
+        let id = codex_experience_id(kind, repo_path, arguments);
+        if self.db.drawer_exists(&id).await? {
             return Ok(json!({
                 "recorded": false,
                 "duplicate": true,
-                "drawer": drawer_to_json(existing),
+                "drawer_id": id,
+                "fingerprint": codex_experience_fingerprint(kind, repo_path, arguments),
             }));
         }
 
-        let id = codex_event_id(kind, repo_path, &content, &filed_at);
         let drawer = Drawer::new(id.clone(), wing, room, content, "codex_mcp")
             .with_source_file(repo_path)
             .with_filed_at(filed_at);
@@ -381,6 +381,7 @@ impl ServerState {
             "recorded": inserted,
             "duplicate": false,
             "drawer": drawer_to_json(drawer),
+            "fingerprint": codex_experience_fingerprint(kind, repo_path, arguments),
         }))
     }
 
@@ -1200,15 +1201,42 @@ fn codex_stable_id(kind: &str, repo_path: &str) -> String {
     format!("codex_{kind}_{digest:x}")
 }
 
-fn codex_event_id(kind: &str, repo_path: &str, content: &str, filed_at: &str) -> String {
-    let digest = md5::compute(
-        format!("codex\u{1f}{kind}\u{1f}{repo_path}\u{1f}{content}\u{1f}{filed_at}").as_bytes(),
-    );
+fn codex_experience_id(kind: &str, repo_path: &str, arguments: &Map<String, Value>) -> String {
+    let fingerprint = codex_experience_fingerprint(kind, repo_path, arguments);
+    let digest = md5::compute(fingerprint.as_bytes());
     format!(
         "codex_{}_{}",
         slugish(kind),
         hex_prefix(&format!("{digest:x}"), 24)
     )
+}
+
+fn codex_experience_fingerprint(
+    kind: &str,
+    repo_path: &str,
+    arguments: &Map<String, Value>,
+) -> String {
+    let problem = arguments
+        .get("problem")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let solution = arguments
+        .get("solution")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    [kind, repo_path, problem, solution]
+        .into_iter()
+        .map(canonical_fingerprint_part)
+        .collect::<Vec<_>>()
+        .join("\u{1f}")
+}
+
+fn canonical_fingerprint_part(value: &str) -> String {
+    value
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_ascii_lowercase()
 }
 
 fn hex_prefix(value: &str, len: usize) -> &str {
@@ -1690,6 +1718,27 @@ mod tests {
         );
     }
 
+    #[tokio::test]
+    async fn codex_record_experience_deduplicates_by_stable_fingerprint() {
+        let state = test_state("codex-dedupe").await;
+        let args = json!({
+            "repo_path": "/tmp/aimem",
+            "language": "rust",
+            "kind": "testing",
+            "problem": "MCP handlers need stable duplicate checks.",
+            "solution": "Hash repo, kind, problem, and solution instead of timestamped content.",
+            "outcome": "First write wins."
+        });
+
+        let first = call_tool(&state, "codex_record_experience", args.clone()).await;
+        let second = call_tool(&state, "codex_record_experience", args).await;
+
+        assert_eq!(first["recorded"], true);
+        assert_eq!(second["recorded"], false);
+        assert_eq!(second["duplicate"], true);
+        assert_eq!(first["fingerprint"], second["fingerprint"]);
+        assert_eq!(state.db.drawer_count().await.expect("drawer count"), 1);
+    }
     #[tokio::test]
     async fn codex_context_returns_profile_and_relevant_experience() {
         let state = test_state("codex-context").await;
