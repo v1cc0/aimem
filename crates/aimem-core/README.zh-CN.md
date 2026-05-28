@@ -19,7 +19,7 @@
 
 CLI 在 `aimem-cli`，MCP server 在 `aimem-mcp`。
 
-## 0.3.x 能力
+## 当前能力
 
 当前这一代 `aimem-core` 已包含：
 

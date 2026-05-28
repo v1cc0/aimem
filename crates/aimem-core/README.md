@@ -19,7 +19,7 @@ It provides:
 
 CLI lives in `aimem-cli`. MCP server lives in `aimem-mcp`.
 
-## 0.3.x capabilities
+## Current capabilities
 
 Current `aimem-core` includes:
 

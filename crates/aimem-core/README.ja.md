@@ -17,7 +17,7 @@
 - 中国語 / 日本語検索向けの Unicode / CJK / Kana keyword fallback
 - リポジトリ内の再現可能なテキストおよび deterministic multimodal truth benchmark
 
-## 0.3.x の主な点
+## Current capabilities
 
 - async embedding flow
 - `LocalEmbedder`
