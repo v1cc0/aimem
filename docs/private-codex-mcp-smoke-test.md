@@ -13,9 +13,10 @@ rm -f "$AIMEM_DB_PATH" "$AIMEM_DB_PATH"-wal "$AIMEM_DB_PATH"-tshm
 ```
 
 Then paste the JSON-RPC lines below into `aimem-mcp`, or pipe them as one stream.
+If you want to use the `jq` delete example later, save the output to a file.
 
 ```bash
-cat <<'JSONRPC' | aimem-mcp
+cat <<'JSONRPC' | aimem-mcp | tee /tmp/aimem-codex-smoke.out
 {"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}
 {"jsonrpc":"2.0","method":"notifications/initialized","params":{}}
 {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"codex_record_repo","arguments":{"repo_path":"/tmp/aimem-smoke","repo_name":"aimem-smoke","language":"rust","summary":"Temporary smoke-test repo profile."}}}
@@ -45,6 +46,18 @@ Copy a drawer `id` from one of the search/context responses, then call:
 
 ```json
 {"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"codex_delete_experience","arguments":{"drawer_id":"PASTE_DRAWER_ID_HERE"}}}
+```
+
+Or extract the first search result drawer id with `jq` and delete it in one pipeline:
+
+```bash
+DRAWER_ID=$(jq -r 'select(.id == 6) | .result.content[0].text | fromjson | .results[0].id' /tmp/aimem-codex-smoke.out)
+{
+  printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
+  printf '%s\n' '{"jsonrpc":"2.0","method":"notifications/initialized","params":{}}'
+  jq -nc --arg drawer_id "$DRAWER_ID" \
+    '{jsonrpc:"2.0",id:8,method:"tools/call",params:{name:"codex_delete_experience",arguments:{drawer_id:$drawer_id}}}'
+} | aimem-mcp
 ```
 
 A successful delete returns `"deleted": true`.
