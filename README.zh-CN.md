@@ -1,8 +1,6 @@
 # AiMem
 
-**语言 / Language / 言語：** [English](https://github.com/v1cc0/aimem/blob/main/README.md) | 简体中文 | [日本語](https://github.com/v1cc0/aimem/blob/main/README.ja.md)
-
-> GitHub 和 crates.io 在这里都不提供原生 README 语言 tabs，所以 AiMem 使用顶部语言切换链接。
+**[English](https://github.com/v1cc0/aimem/blob/main/README.md) | 简体中文 | [日本語](https://github.com/v1cc0/aimem/blob/main/README.ja.md)**
 
 [![crates.io: aimem-core](https://img.shields.io/crates/v/aimem-core)](https://crates.io/crates/aimem-core)
 [![crates.io: aimem-cli](https://img.shields.io/crates/v/aimem-cli)](https://crates.io/crates/aimem-cli)
@@ -10,35 +8,11 @@
 
 AiMem 是面向 AI agent 的 Rust-first 本地记忆基础设施。
 
-它把长期记忆放进一个单独的 Turso 数据库文件里，并暴露三层交付形态：
+它把长期记忆存进一个 Turso 数据库，并提供：
 
 - `aimem-core` — 存储、挖掘、搜索、memory layers、知识图谱
 - `aimem` — CLI
 - `aimem-mcp` — stdio MCP server
-
-## 0.3.x 实际新增了什么
-
-`0.3.x` 这一代的真实改进包括：
-
-- async embedding flow
-- `LocalEmbedder` 与 opt-in `Gemini2Embedder`
-- 多模态 `ContentPart`
-- embedding store profile：
-  - provider
-  - model
-  - dimension
-- 阻止混库的 profile guard
-- `Drawer` helper API
-- `MemoryStack::file_text(...)`
-- `MemoryStack::file_drawer_with_id(...)`
-- `MemoryStack::file_drawers_with_ids(...)`
-- 基于 Turso FTS + RRF 融合的 hybrid 检索
-- 面向中文 / 日文检索的 Unicode / CJK / Kana keyword fallback
-- `benchmarks/` 下可复现的英 / 中 / 日文本与确定性多模态 truth benchmark
-- CLI / MCP status 暴露 embedding profile
-- 面向 Codex 的私有 MCP 工具：本地 repo profile、编码经验卡片与任务上下文检索
-- 收窄后的 extractor 与多语言回归测试
-- CI 中的 `cargo audit`
 
 ## 工作区结构
 
@@ -51,7 +25,7 @@ crates/
 
 ## 核心特点
 
-- 单一本地 Turso DB：`~/.aimem/aimem.db`
+- 单一本地 Turso DB 文件：`~/.aimem/aimem.db`
 - 文件型 store 使用 Turso multiprocess WAL 协调，旁边可能出现 `.db-wal` / `.db-tshm` sidecar
 - hybrid 关键词 + 向量检索
 - 不使用 embedding 时的 CJK / 日文 keyword fallback
@@ -59,11 +33,11 @@ crates/
 - 项目挖掘与会话导入
 - 4 层 wake-up memory stack
 - 多模态内容模型
-- 默认本地 embedding
+- 默认本地 embedder
 - 可选远程 Gemini embedding
 - 面向 agent tooling 的 MCP 接入
 - 基于本地 AiMem DB 的私有 Codex 编码经验工具
-- 仓库内不再依赖 Python runtime
+- 仓库内不依赖 Python runtime
 
 ## Embedding 模式
 
@@ -72,33 +46,32 @@ crates/
 - `LocalEmbedder`
 - 基于 `fastembed`
 - 默认推荐
-- embedding 本地生成
+- embedding 在本地生成
 
 ### Remote
 
 - `Gemini2Embedder`
-- 需要显式 opt-in
+- 显式 opt-in
 - 只发送你显式提供的数据
 
-安全边界：
+重要安全边界：
 
 - URI-only 的多媒体 part **不会**自动读取本地文件再上传。
 - Remote embedding 只接受显式文本、data URI 或 raw bytes。
 
 ## Store 兼容性保护
 
-AiMem 会把 embedding profile 元数据写入 store，并在写入和语义查询时校验：
+AiMem 会把 embedding profile 元数据写入 store，并拒绝混用不同 embedding store。
+
+写入和语义查询会检查：
 
 - provider
 - model
 - dimension
 
-所以本地 `384d` 和远程 `768d` embedding 切换时，不会静默混库，而是直接失败。
+所以从本地 `384d` embedding 切到远程 `768d` embedding 时，同一个 DB 不会静默降级，而是会快速失败。
 
-对于附件类写入，AiMem 现在还支持通过
-`MemoryStack::file_drawers_with_ids(...)` 一次提交一组调用方提供的稳定 ID
-drawers。下游应用可以把同一个文件的 summary + chunk drawers 放进同一批，
-从而共用一次 embedding 调用，并在重试时先跳过已经入库的 ID。
+对于附件类写入，AiMem 可以通过 `MemoryStack::file_drawers_with_ids(...)` 批量提交调用方提供的 stable-ID drawers。下游应用可以把同一个文件的 summary + chunk drawers 合并到一次 embedding 调用，并在重试时先跳过已写入的 ID。
 
 ## 安装
 
@@ -122,9 +95,10 @@ cargo add aimem-core
 
 ## 快速开始
 
-先准备一个极小的 `aimem.yaml`：
+创建一个极小的项目配置：
 
 ```yaml
+# aimem.yaml
 wing: demo_app
 rooms:
   - name: backend
@@ -141,7 +115,7 @@ rooms:
 aimem mine /path/to/project --no-embed
 ```
 
-查询：
+查询已存内容：
 
 ```bash
 aimem status
@@ -149,7 +123,7 @@ aimem search "why did we choose Turso?"
 aimem wake-up
 ```
 
-如果要启用 remote embedding：
+启用 remote embedding：
 
 ```bash
 export GEMINI_API_KEY=...
@@ -196,10 +170,10 @@ aimem mine /path/to/project --no-embed
 
 补充说明：
 
-- `aimem status` 会显示当前 DB 的 embedding profile。
-- `aimem search` / `aimem mine` 可通过 `--gemini-key` 或 `GEMINI_API_KEY` 启用 remote embedding。
+- `aimem status` 会显示 DB 中当前的 embedding profile。
+- `aimem search` / `aimem mine` 可通过 `--gemini-key` 或 `GEMINI_API_KEY` 启用 opt-in remote embedding。
 - 当 embedder 可用时，`aimem search` 会走 hybrid 关键词 + 向量排序。
-- 项目挖掘要求目标根目录里有 `aimem.yaml`。
+- 项目挖掘要求目标项目根目录存在 `aimem.yaml`。
 
 ## MCP
 
@@ -244,3 +218,10 @@ aimem-mcp
 - `AIMEM_DB_PATH`
 - `AIMEM_IDENTITY_PATH`
 - `GEMINI_API_KEY`
+
+## Repository
+
+- repo: `https://github.com/v1cc0/aimem`
+- license: MIT
+- Inspired by https://github.com/milla-jovovich/mempalace
+- 欢迎 issue。AI 生成的 PR 可能会被忽略。

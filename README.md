@@ -1,16 +1,11 @@
 # AiMem
 
-**Language / 语言 / 言語:** English | [简体中文](https://github.com/v1cc0/aimem/blob/main/README.zh-CN.md) | [日本語](https://github.com/v1cc0/aimem/blob/main/README.ja.md)
-
-> GitHub and crates.io do not provide native README language tabs here, so AiMem uses language switch links instead.
+**English** | [简体中文](https://github.com/v1cc0/aimem/blob/main/README.zh-CN.md) | [日本語](https://github.com/v1cc0/aimem/blob/main/README.ja.md)
 
 [![crates.io: aimem-core](https://img.shields.io/crates/v/aimem-core)](https://crates.io/crates/aimem-core)
 [![crates.io: aimem-cli](https://img.shields.io/crates/v/aimem-cli)](https://crates.io/crates/aimem-cli)
 [![crates.io: aimem-mcp](https://img.shields.io/crates/v/aimem-mcp)](https://crates.io/crates/aimem-mcp)
 
-Inspired by https://github.com/milla-jovovich/mempalace
-
-Small solo project. Issues are welcome.
 
 AiMem is Rust-first local memory infrastructure for AI agents.
 
@@ -19,30 +14,6 @@ It stores long-term memory in a single Turso database and exposes:
 - `aimem-core` — storage, mining, search, memory layers, knowledge graph
 - `aimem` — CLI
 - `aimem-mcp` — stdio MCP server
-
-## What 0.3.x added
-
-The `0.3.x` line introduced the main architectural improvements that were missing from older docs:
-
-- async embedding flow
-- `LocalEmbedder` and opt-in `Gemini2Embedder`
-- multimodal `ContentPart`
-- embedding store profile tracking:
-  - provider
-  - model
-  - dimension
-- profile guards that reject mixed embedding stores
-- `Drawer` helper API
-- `MemoryStack::file_text(...)`
-- `MemoryStack::file_drawer_with_id(...)`
-- `MemoryStack::file_drawers_with_ids(...)`
-- hybrid keyword + vector search via Turso FTS + RRF fusion
-- Unicode/CJK/Kana-aware keyword fallback for Chinese and Japanese retrieval
-- reproducible EN/ZH/JA text and deterministic multimodal truth benchmarks under `benchmarks/`
-- CLI / MCP status now showing embedding profile
-- private Codex MCP tools for local repo profiles, coding experience cards, and task context retrieval
-- tighter extractor heuristics with multilingual regression tests
-- CI dependency auditing via `cargo audit`
 
 ## Workspace layout
 
@@ -256,3 +227,5 @@ Environment overrides:
 
 - repo: `https://github.com/v1cc0/aimem`
 - license: MIT
+- Inspired by https://github.com/milla-jovovich/mempalace
+- Issues are welcome. AI-generated PRs may be ignored.

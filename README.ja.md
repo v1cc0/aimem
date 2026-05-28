@@ -1,8 +1,6 @@
 # AiMem
 
-**Language / 语言 / 言語:** [English](https://github.com/v1cc0/aimem/blob/main/README.md) | [简体中文](https://github.com/v1cc0/aimem/blob/main/README.zh-CN.md) | 日本語
-
-> GitHub と crates.io にはこの場所でネイティブな README タブ機能がないため、AiMem は上部の言語切替リンクを使います。
+**[English](https://github.com/v1cc0/aimem/blob/main/README.md) | [简体中文](https://github.com/v1cc0/aimem/blob/main/README.zh-CN.md) | 日本語**
 
 [![crates.io: aimem-core](https://img.shields.io/crates/v/aimem-core)](https://crates.io/crates/aimem-core)
 [![crates.io: aimem-cli](https://img.shields.io/crates/v/aimem-cli)](https://crates.io/crates/aimem-cli)
@@ -16,28 +14,18 @@ AiMem は AI エージェント向けの Rust-first ローカルメモリ基盤�
 - `aimem` — CLI
 - `aimem-mcp` — stdio MCP サーバー
 
-## 0.3.x の主な改善点
+## Workspace layout
 
-- async embedding flow
-- `LocalEmbedder` と opt-in `Gemini2Embedder`
-- マルチモーダル `ContentPart`
-- embedding store profile：provider / model / dimension
-- mixed store を拒否する profile guard
-- `Drawer` helper API
-- `MemoryStack::file_text(...)`
-- `MemoryStack::file_drawer_with_id(...)`
-- `MemoryStack::file_drawers_with_ids(...)`
-- Turso FTS + RRF 融合による hybrid 検索
-- 中国語 / 日本語検索向けの Unicode / CJK / Kana keyword fallback
-- `benchmarks/` 配下の再現可能な EN/ZH/JA テキストおよび deterministic multimodal truth benchmark
-- CLI / MCP status に embedding profile を表示
-- Codex 向け private MCP tools：local repo profile、coding experience card、task context retrieval
-- より安全に絞り込んだ extractor と多言語回帰テスト
-- CI の `cargo audit`
+```text
+crates/
+├── aimem-core/
+├── aimem-cli/
+└── aimem-mcp/
+```
 
-## 特徴
+## Highlights
 
-- 単一のローカル Turso DB：`~/.aimem/aimem.db`
+- 単一のローカル Turso DB ファイル：`~/.aimem/aimem.db`
 - ファイル backed store は Turso multiprocess WAL coordination を使い、`.db-wal` / `.db-tshm` sidecar を作成することがあります
 - hybrid キーワード + ベクトル検索
 - embedding なし検索向けの CJK / 日本語 keyword fallback
@@ -45,18 +33,20 @@ AiMem は AI エージェント向けの Rust-first ローカルメモリ基盤�
 - プロジェクトマイニングと会話インポート
 - 4-layer wake-up memory stack
 - マルチモーダル content model
-- デフォルトはローカル embedding
+- デフォルトはローカル embedder
 - opt-in の Gemini remote embedding
 - エージェント向け MCP 統合
 - ローカル AiMem DB 上の private Codex coding-experience tools
+- この repository に Python runtime は不要
 
-## Embedding モード
+## Embedding modes
 
 ### Local
 
 - `LocalEmbedder`
 - `fastembed` ベース
 - デフォルト推奨
+- embedding はローカルで生成
 
 ### Remote
 
@@ -64,38 +54,70 @@ AiMem は AI エージェント向けの Rust-first ローカルメモリ基盤�
 - 明示的 opt-in
 - 明示的に渡したデータだけを送信
 
-安全境界：
+重要な安全境界：
 
-- URI-only の multimedia part からローカルファイルを自動読み込みしてアップロードすることはありません。
+- URI-only の multimodal part からローカルファイルを自動読み込みしてアップロードすることはありません。
+- Remote embedding は明示的な text、data URI、raw bytes のみを受け取ります。
 
-## Store 互換性ガード
+## Store compatibility guard
 
-AiMem は embedding profile を store に記録し、書き込みとセマンティック検索時に以下を検証します：
+AiMem は embedding profile metadata を store に記録し、mixed store を拒否します。
+
+書き込みと semantic query は以下を検証します：
 
 - provider
 - model
 - dimension
 
-そのため local `384d` と remote `768d` を同じ DB に静かに混ぜることはありません。
+そのため local `384d` embedding から remote `768d` embedding に切り替えた場合、同じ DB で静かに検索品質を落とすのではなく、早期に失敗します。
 
-添付ファイル系の取り込みでは、
-`MemoryStack::file_drawers_with_ids(...)` で呼び出し側が用意した stable-ID
-drawer 群をまとめて filing できます。下流アプリは 1 ファイル分の summary +
-chunk drawers を 1 バッチにして 1 回の embedding 呼び出しにまとめられ、
-リトライ時には既存 ID を embedding 前にスキップできます。
+添付ファイル系の取り込みでは、`MemoryStack::file_drawers_with_ids(...)` で呼び出し側が用意した stable-ID drawers をまとめて filing できます。下流アプリは 1 ファイル分の summary + chunk drawers を 1 回の embedding call にまとめられ、retry 時には既存 ID を embedding 前に skip できます。
 
-## インストール
+## Install
+
+CLI:
 
 ```bash
 cargo install aimem-cli
+```
+
+MCP server:
+
+```bash
 cargo install aimem-mcp
+```
+
+Library:
+
+```bash
 cargo add aimem-core
 ```
 
-## クイックスタート
+## Quick start
+
+小さな project config を作成します：
+
+```yaml
+# aimem.yaml
+wing: demo_app
+rooms:
+  - name: backend
+    description: backend code and docs
+    keywords: [router, handler, database, rust]
+  - name: decisions
+    description: architecture and tradeoffs
+    keywords: [decided, chose, tradeoff, because]
+```
+
+プロジェクトをローカルメモリに取り込みます：
 
 ```bash
 aimem mine /path/to/project --no-embed
+```
+
+保存内容を検索します：
+
+```bash
 aimem status
 aimem search "why did we choose Turso?"
 aimem wake-up
@@ -108,6 +130,50 @@ export GEMINI_API_KEY=...
 aimem search "why did we choose Turso?" --gemini-key "$GEMINI_API_KEY"
 ```
 
+## Minimal Rust example
+
+```rust
+use aimem_core::prelude::*;
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let db = AimemDb::open("./aimem.db").await?;
+
+    let drawer = Drawer::new(
+        "drawer_demo_001",
+        "demo_app",
+        "backend",
+        "We chose Turso so storage and retrieval stay local.",
+        "example",
+    )
+    .with_source_file("DECISIONS.md");
+
+    db.insert_drawer(&drawer, None).await?;
+
+    let hits = Searcher::keyword_only(db)
+        .keyword_search("Turso", Some("demo_app"), None, 5)
+        .await?;
+
+    println!("hits = {}", hits.len());
+    Ok(())
+}
+```
+
+## CLI
+
+```bash
+aimem status
+aimem wake-up
+aimem search "hybrid search"
+aimem mine /path/to/project --no-embed
+```
+
+Useful notes:
+
+- `aimem status` は DB に保存された現在の embedding profile を表示します。
+- `aimem search` / `aimem mine` は `--gemini-key` または `GEMINI_API_KEY` で opt-in remote embedding を使えます。
+- embedder が利用可能な場合、`aimem search` は hybrid キーワード + ベクトル ranking を使います。
+- project mining は対象 project root に `aimem.yaml` が必要です。
 
 ## MCP
 
@@ -140,25 +206,22 @@ Current tools:
 
 - Private Codex MCP smoke test: [`docs/private-codex-mcp-smoke-test.md`](https://github.com/v1cc0/aimem/blob/main/docs/private-codex-mcp-smoke-test.md)
 
-## Rust の最小例
+## Config
 
-```rust
-use aimem_core::prelude::*;
+Default local paths:
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    let db = AimemDb::open("./aimem.db").await?;
+- database: `~/.aimem/aimem.db`
+- identity: `~/.aimem/identity.txt`
 
-    let drawer = Drawer::new(
-        "drawer_demo_001",
-        "demo_app",
-        "backend",
-        "We chose Turso so storage and retrieval stay local.",
-        "example",
-    )
-    .with_source_file("DECISIONS.md");
+Environment overrides:
 
-    db.insert_drawer(&drawer, None).await?;
-    Ok(())
-}
-```
+- `AIMEM_DB_PATH`
+- `AIMEM_IDENTITY_PATH`
+- `GEMINI_API_KEY`
+
+## Repository
+
+- repo: `https://github.com/v1cc0/aimem`
+- license: MIT
+- Inspired by https://github.com/milla-jovovich/mempalace
+- Issues are welcome. AI-generated PRs may be ignored.
