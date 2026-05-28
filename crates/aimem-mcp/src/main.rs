@@ -293,6 +293,15 @@ impl ServerState {
         }))
     }
 
+    async fn tool_codex_delete_experience(&self, drawer_id: &str) -> Result<Value> {
+        let deleted = self.db.delete_drawer(drawer_id).await?;
+        Ok(json!({
+            "deleted": deleted,
+            "drawer_id": drawer_id,
+            "scope": "codex_experience",
+        }))
+    }
+
     async fn tool_codex_record_repo(&self, arguments: &Map<String, Value>) -> Result<Value> {
         let repo_path = required_str(arguments, "repo_path")?;
         let detected = detect_repo_profile(repo_path);
@@ -836,6 +845,19 @@ async fn handle_tool_call(state: &ServerState, req_id: Value, params: &Value) ->
         "codex_record_experience" => state.tool_codex_record_experience(&arguments).await,
         "codex_record_command" => state.tool_codex_record_command(&arguments).await,
         "codex_record_round_summary" => state.tool_codex_record_round_summary(&arguments).await,
+        "codex_delete_experience" => {
+            let drawer_id = match arguments.get("drawer_id").and_then(Value::as_str) {
+                Some(drawer_id) if !drawer_id.is_empty() => drawer_id,
+                _ => {
+                    return error_response(
+                        req_id,
+                        -32602,
+                        "codex_delete_experience requires `drawer_id`",
+                    );
+                }
+            };
+            state.tool_codex_delete_experience(drawer_id).await
+        }
         "codex_search_experience" => state.tool_codex_search_experience(&arguments).await,
         "codex_context" => state.tool_codex_context(&arguments).await,
         _ => return error_response(req_id, -32601, &format!("Unknown tool: {tool_name}")),
@@ -1009,6 +1031,17 @@ fn tool_specs() -> Vec<Value> {
                     "tags": { "type": "array", "items": { "type": "string" } }
                 },
                 "required": ["repo_path", "summary"]
+            }),
+        ),
+        tool_spec(
+            "codex_delete_experience",
+            "Delete a private Codex experience card by drawer ID.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "drawer_id": { "type": "string", "description": "Codex experience drawer ID to remove." }
+                },
+                "required": ["drawer_id"]
             }),
         ),
         tool_spec(
@@ -1718,6 +1751,7 @@ mod tests {
         assert!(names.contains(&"codex_record_experience"));
         assert!(names.contains(&"codex_record_command"));
         assert!(names.contains(&"codex_record_round_summary"));
+        assert!(names.contains(&"codex_delete_experience"));
         assert!(names.contains(&"codex_search_experience"));
         assert!(names.contains(&"codex_context"));
     }
@@ -2152,6 +2186,34 @@ mod tests {
                 .expect("content")
                 .contains("/tmp/ranked")
         );
+    }
+
+    #[tokio::test]
+    async fn codex_delete_experience_removes_card() {
+        let state = test_state("codex-delete").await;
+
+        let recorded = call_tool(
+            &state,
+            "codex_record_experience",
+            json!({
+                "repo_path": "/tmp/delete-demo",
+                "kind": "testing",
+                "problem": "Temporary Codex memory needs cleanup.",
+                "solution": "Delete it by drawer ID."
+            }),
+        )
+        .await;
+        let drawer_id = recorded["drawer"]["id"].as_str().expect("drawer id");
+
+        let deleted = call_tool(
+            &state,
+            "codex_delete_experience",
+            json!({ "drawer_id": drawer_id }),
+        )
+        .await;
+
+        assert_eq!(deleted["deleted"], true);
+        assert_eq!(state.db.drawer_count().await.expect("drawer count"), 0);
     }
     #[tokio::test]
     async fn delete_drawer_removes_existing_row() {

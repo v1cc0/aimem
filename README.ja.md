@@ -130,12 +130,13 @@ Current tools:
 - `codex_record_experience`
 - `codex_record_command`
 - `codex_record_round_summary`
+- `codex_delete_experience`
 - `codex_search_experience`
 - `codex_context`
 
 `aimem_status` も現在の embedding profile を返します。
 
-`codex_*` tools は Codex 系 agent 向けの private/local coding-experience tools です。編集済み repo profile、compact reusable experience card、task-focused context を同じ AiMem DB に保存します。`codex_record_repo` は明示された `repo_path` の周辺だけを保守的に検出します：repo root、既知 manifest、likely test commands、`.git` HEAD/origin。`codex_record_command` は verification / diagnostic command を記録し、`codex_record_round_summary` は handoff summary、changed files、commands、next steps を記録します。`codex_context` は same-repo、incident、same-language、keyword-overlap boost で関連カードを ranking します。experience card は repo/kind/problem/solution に基づく stable fingerprint で重複検出します。明示的な設計であり、filesystem crawler、会話 transcript の自動取り込み、secret 収集は行いません。
+`codex_*` tools は Codex 系 agent 向けの private/local coding-experience tools です。編集済み repo profile、compact reusable experience card、task-focused context を同じ AiMem DB に保存します。`codex_record_repo` は明示された `repo_path` の周辺だけを保守的に検出します：repo root、既知 manifest、likely test commands、`.git` HEAD/origin。`codex_record_command` は verification / diagnostic command を記録し、`codex_record_round_summary` は handoff summary、changed files、commands、next steps を記録します。`codex_context` は same-repo、incident、same-language、keyword-overlap boost で関連カードを ranking します。experience card は repo/kind/problem/solution に基づく stable fingerprint で重複検出します。`codex_delete_experience` は drawer ID で private Codex card を削除します。明示的な設計であり、filesystem crawler、会話 transcript の自動取り込み、secret 収集は行いません。
 
 ## Rust の最小例
 

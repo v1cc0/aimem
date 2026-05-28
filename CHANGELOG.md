@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 - Added stable repo/kind/problem/solution fingerprints for `codex_record_experience` duplicate detection so timestamped card content does not create repeat records for the same lesson.
 - Added deterministic `codex_context` ranking boosts for same-repo records, incidents, same-language records, and keyword overlap.
 - Added `codex_record_command` and `codex_record_round_summary` so verification commands and coding-round handoffs become searchable Codex experience cards.
+- Added `codex_delete_experience` as a narrow cleanup wrapper for deleting private Codex cards by drawer ID.
 
 ### Changed
 - Upgraded the workspace Turso stack to stable `0.6.1` and enabled the explicit `fts` feature required by AiMem's Turso FTS index when `default-features = false`.
