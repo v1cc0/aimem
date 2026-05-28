@@ -225,7 +225,7 @@ aimem-mcp
 
 `aimem_status` 也会返回当前 embedding profile。
 
-`codex_*` 工具是面向 Codex 类 agent 的私有、本地编码经验工具。它们把已编辑 repo profile、紧凑可复用 experience card 和任务相关上下文存在同一个 AiMem DB 中。`codex_record_repo` 只围绕显式传入的 `repo_path` 做保守检测：repo root、已知 manifest、可能的 test commands、`.git` HEAD/origin。experience card 使用基于 repo/kind/problem/solution 的稳定指纹做重复检测。设计上保持显式：不自动爬取文件系统、不自动导入完整对话 transcript，也不采集 secret。
+`codex_*` 工具是面向 Codex 类 agent 的私有、本地编码经验工具。它们把已编辑 repo profile、紧凑可复用 experience card 和任务相关上下文存在同一个 AiMem DB 中。`codex_record_repo` 只围绕显式传入的 `repo_path` 做保守检测：repo root、已知 manifest、可能的 test commands、`.git` HEAD/origin。`codex_context` 会用同 repo、incident、同 language 和关键词重叠 boost 对相关卡片排序。experience card 使用基于 repo/kind/problem/solution 的稳定指纹做重复检测。设计上保持显式：不自动爬取文件系统、不自动导入完整对话 transcript，也不采集 secret。
 
 ## 配置
 

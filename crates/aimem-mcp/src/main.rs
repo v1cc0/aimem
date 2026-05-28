@@ -423,17 +423,31 @@ impl ServerState {
                     || drawer.source_file.as_deref() == Some(repo_path)
             })
             .collect::<Vec<_>>();
+        let repo_language = profiles
+            .iter()
+            .find_map(|drawer| codex_card_scalar(&drawer.content, "language"));
 
-        let incidents = self
-            .db
-            .fetch_drawers(Some(CODEX_INCIDENT_WING), None, limit)
-            .await?
-            .into_iter()
-            .filter(|drawer| drawer.content.contains(repo_path))
-            .collect::<Vec<_>>();
+        let incidents = rank_codex_drawers(
+            self.db
+                .fetch_drawers(
+                    Some(CODEX_INCIDENT_WING),
+                    None,
+                    limit.saturating_mul(4).max(16),
+                )
+                .await?
+                .into_iter()
+                .filter(|drawer| drawer.content.contains(repo_path))
+                .collect(),
+            task,
+            repo_path,
+            repo_language.as_deref(),
+        )
+        .into_iter()
+        .take(limit)
+        .collect::<Vec<_>>();
 
         let relevant = self
-            .codex_search_drawers(task, Some(repo_path), None, None, limit)
+            .codex_search_drawers(task, Some(repo_path), repo_language.as_deref(), None, limit)
             .await?;
 
         Ok(json!({
@@ -476,7 +490,12 @@ impl ServerState {
                 && kind.is_none_or(|value| drawer.content.contains(&format!("kind: {value}")))
         });
 
-        Ok(results)
+        Ok(rank_codex_drawers(
+            results,
+            query,
+            repo_path.unwrap_or_default(),
+            language,
+        ))
     }
 
     async fn room_counts(&self, wing: Option<&str>) -> Result<BTreeMap<String, i64>> {
@@ -978,6 +997,62 @@ fn hybrid_search_result_to_json(result: HybridSearchResult) -> Value {
         "semantic_similarity": result.semantic_similarity,
         "keyword_score": result.keyword_score,
     })
+}
+
+fn rank_codex_drawers(
+    mut drawers: Vec<Drawer>,
+    query: &str,
+    repo_path: &str,
+    language: Option<&str>,
+) -> Vec<Drawer> {
+    drawers.sort_by(|a, b| {
+        let a_score = codex_rank_score(a, query, repo_path, language);
+        let b_score = codex_rank_score(b, query, repo_path, language);
+        b_score
+            .cmp(&a_score)
+            .then_with(|| b.filed_at.cmp(&a.filed_at))
+            .then_with(|| a.id.cmp(&b.id))
+    });
+    drawers
+}
+
+fn codex_rank_score(drawer: &Drawer, query: &str, repo_path: &str, language: Option<&str>) -> i64 {
+    let mut score = 0;
+    if !repo_path.is_empty()
+        && (drawer.content.contains(repo_path) || drawer.source_file.as_deref() == Some(repo_path))
+    {
+        score += 1_000;
+    }
+    if drawer.wing == CODEX_INCIDENT_WING || drawer.room == "incident" {
+        score += 250;
+    }
+    if let Some(language) = language {
+        if drawer.content.contains(&format!("language: {language}")) {
+            score += 150;
+        }
+    }
+    score += codex_keyword_overlap(query, &drawer.content) as i64 * 20;
+    score
+}
+
+fn codex_keyword_overlap(query: &str, content: &str) -> usize {
+    let content = content.to_ascii_lowercase();
+    query
+        .split(|ch: char| !ch.is_alphanumeric())
+        .filter(|token| token.len() >= 3)
+        .map(str::to_ascii_lowercase)
+        .filter(|token| content.contains(token))
+        .count()
+}
+
+fn codex_card_scalar(content: &str, key: &str) -> Option<String> {
+    let prefix = format!("{key}: ");
+    content
+        .lines()
+        .find_map(|line| line.strip_prefix(&prefix))
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToString::to_string)
 }
 
 fn detect_repo_profile(repo_path: &str) -> Map<String, Value> {
@@ -1789,6 +1864,88 @@ mod tests {
                 .expect("experiences")
                 .len(),
             1
+        );
+    }
+
+    #[tokio::test]
+    async fn codex_context_ranks_same_repo_and_incidents_first() {
+        let state = test_state("codex-rank").await;
+
+        call_tool(
+            &state,
+            "codex_record_repo",
+            json!({
+                "repo_path": "/tmp/ranked",
+                "repo_name": "ranked",
+                "language": "rust",
+                "summary": "Ranking demo."
+            }),
+        )
+        .await;
+        call_tool(
+            &state,
+            "codex_record_experience",
+            json!({
+                "repo_path": "/tmp/other",
+                "language": "rust",
+                "kind": "testing",
+                "problem": "MCP ranking regression tests need helpers.",
+                "solution": "Use another repo to ensure same-repo boost wins."
+            }),
+        )
+        .await;
+        call_tool(
+            &state,
+            "codex_record_experience",
+            json!({
+                "repo_path": "/tmp/ranked",
+                "language": "rust",
+                "kind": "testing",
+                "problem": "MCP ranking regression tests need helpers.",
+                "solution": "Same repo records should outrank cross-repo records."
+            }),
+        )
+        .await;
+        call_tool(
+            &state,
+            "codex_record_experience",
+            json!({
+                "repo_path": "/tmp/ranked",
+                "language": "rust",
+                "kind": "incident",
+                "problem": "MCP ranking regression tests failed before handoff.",
+                "solution": "Surface incidents before ordinary experience cards."
+            }),
+        )
+        .await;
+
+        let context = call_tool(
+            &state,
+            "codex_context",
+            json!({
+                "repo_path": "/tmp/ranked",
+                "task": "MCP ranking regression tests",
+                "limit": 5
+            }),
+        )
+        .await;
+        let experiences = context["relevant_experiences"]
+            .as_array()
+            .expect("experiences");
+
+        assert!(experiences.len() >= 2);
+        assert_eq!(experiences[0]["wing"], CODEX_INCIDENT_WING);
+        assert!(
+            experiences[0]["content"]
+                .as_str()
+                .expect("content")
+                .contains("/tmp/ranked")
+        );
+        assert!(
+            experiences[1]["content"]
+                .as_str()
+                .expect("content")
+                .contains("/tmp/ranked")
         );
     }
     #[tokio::test]

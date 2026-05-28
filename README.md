@@ -232,7 +232,7 @@ Current tools:
 
 `aimem_status` also reports the current embedding profile.
 
-The `codex_*` tools are private, local coding-experience tools for Codex-style agents. They store edited repo profiles, compact reusable experience cards, and task-focused context in the same AiMem DB. `codex_record_repo` only performs conservative detection around the explicit `repo_path`: repo root, known manifests, likely test commands, and `.git` HEAD/origin. Experience cards use a stable repo/kind/problem/solution fingerprint for duplicate detection. They are deliberately explicit: no filesystem crawler, no automatic transcript ingestion, and no secret harvesting.
+The `codex_*` tools are private, local coding-experience tools for Codex-style agents. They store edited repo profiles, compact reusable experience cards, and task-focused context in the same AiMem DB. `codex_record_repo` only performs conservative detection around the explicit `repo_path`: repo root, known manifests, likely test commands, and `.git` HEAD/origin. `codex_context` ranks relevant cards with same-repo, incident, same-language, and keyword-overlap boosts. Experience cards use a stable repo/kind/problem/solution fingerprint for duplicate detection. They are deliberately explicit: no filesystem crawler, no automatic transcript ingestion, and no secret harvesting.
 
 ## Config
 
