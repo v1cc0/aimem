@@ -27,10 +27,19 @@ aimem-mcp
 - `aimem_check_duplicate`
 - `aimem_add_drawer`
 - `aimem_delete_drawer`
+- `codex_record_repo`
+- `codex_record_experience`
+- `codex_record_command`
+- `codex_record_round_summary`
+- `codex_delete_experience`
+- `codex_search_experience`
+- `codex_context`
 
 ## メモ
 
 - `aimem_status` は embedding profile も返します。
 - `aimem_search` は embedder が使える場合に hybrid キーワード + ベクトル検索を使います。
 - keyword fallback は中国語 / 日本語クエリ向けの Unicode / CJK / Kana n-gram scoring を含みます。
+- `codex_*` ツールは Codex 系 agent 向けの private coding-experience layer です。編集済み repo profile、compact experience card、task context を同じローカル AiMem DB に保存します。`codex_record_repo` は明示された `repo_path` の周辺だけを保守的に検出します（repo root、既知 manifest、likely test commands、`.git` HEAD/origin）。`codex_record_command` は verification / diagnostic command を記録し、`codex_record_round_summary` は handoff summary、changed files、commands、next steps を記録します。`codex_context` は same-repo、incident、same-language、keyword-overlap boost で関連カードを ranking します。experience card は repo/kind/problem/solution に基づく stable fingerprint で重複検出します。完全な replay は skip されますが、command result や round summary が変わった場合は新しい evidence card として記録されます。`codex_delete_experience` は drawer ID で private Codex card を削除します。ファイルシステムの自動クロールや会話 transcript の自動取り込みは行いません。
 - デフォルト DB は `~/.aimem/aimem.db` で、Turso が隣に `.db-wal` / `.db-tshm` sidecar を作成することがあります。
+- Private Codex MCP smoke test: [`docs/private-codex-mcp-smoke-test.md`](https://github.com/v1cc0/aimem/blob/main/docs/private-codex-mcp-smoke-test.md)

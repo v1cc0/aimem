@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-05-29
+
+### Added
+- Added private Codex MCP tools to `aimem-mcp`: `codex_record_repo`, `codex_record_experience`, `codex_search_experience`, and `codex_context`. These tools reuse the local AiMem DB for explicit repo profiles and compact coding-experience cards; `codex_record_repo` performs conservative detection around the explicit `repo_path`, but does not crawl the filesystem or ingest transcripts automatically.
+- Added stable repo/kind/problem/solution fingerprints for `codex_record_experience` duplicate detection so timestamped card content does not create repeat records for the same lesson.
+- Added deterministic `codex_context` ranking boosts for same-repo records, incidents, same-language records, and keyword overlap.
+- Added `codex_record_command` and `codex_record_round_summary` so verification commands and coding-round handoffs become searchable Codex experience cards.
+- Added `codex_delete_experience` as a narrow cleanup wrapper for deleting private Codex cards by drawer ID.
+- Added `docs/private-codex-mcp-smoke-test.md` with a minimal JSON-RPC smoke test for record/search/context/delete flows.
+- Verified the private Codex MCP smoke-test flow against the real stdio server and removed duplicate `details` rendering from command / round-summary cards.
+- Documented and tested fingerprint semantics for command and round-summary cards: exact replays dedupe, but changed results / summaries create new evidence.
+- Split private Codex MCP helper logic into `crates/aimem-mcp/src/codex.rs` to keep the stdio server entrypoint smaller.
+- Extended the private Codex MCP smoke-test doc with a verified `jq` pipeline that extracts a drawer ID and deletes it through `codex_delete_experience`.
+
+### Changed
+- Upgraded the workspace Turso stack to stable `0.6.1` and enabled the explicit `fts` feature required by AiMem's Turso FTS index when `default-features = false`.
+
 ## [0.3.9] - 2026-04-26
 
 ### Added
