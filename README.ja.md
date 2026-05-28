@@ -31,6 +31,7 @@ AiMem は AI エージェント向けの Rust-first ローカルメモリ基盤�
 - 中国語 / 日本語検索向けの Unicode / CJK / Kana keyword fallback
 - `benchmarks/` 配下の再現可能な EN/ZH/JA テキストおよび deterministic multimodal truth benchmark
 - CLI / MCP status に embedding profile を表示
+- Codex 向け private MCP tools：local repo profile、coding experience card、task context retrieval
 - より安全に絞り込んだ extractor と多言語回帰テスト
 - CI の `cargo audit`
 
@@ -47,6 +48,7 @@ AiMem は AI エージェント向けの Rust-first ローカルメモリ基盤�
 - デフォルトはローカル embedding
 - opt-in の Gemini remote embedding
 - エージェント向け MCP 統合
+- ローカル AiMem DB 上の private Codex coding-experience tools
 
 ## Embedding モード
 
@@ -105,6 +107,33 @@ Remote embedding を使う場合：
 export GEMINI_API_KEY=...
 aimem search "why did we choose Turso?" --gemini-key "$GEMINI_API_KEY"
 ```
+
+
+## MCP
+
+```bash
+aimem-mcp
+```
+
+Current tools:
+
+- `aimem_status`
+- `aimem_list_wings`
+- `aimem_list_rooms`
+- `aimem_get_taxonomy`
+- `aimem_get_aaak_spec`
+- `aimem_search`
+- `aimem_check_duplicate`
+- `aimem_add_drawer`
+- `aimem_delete_drawer`
+- `codex_record_repo`
+- `codex_record_experience`
+- `codex_search_experience`
+- `codex_context`
+
+`aimem_status` も現在の embedding profile を返します。
+
+`codex_*` tools は Codex 系 agent 向けの private/local coding-experience tools です。編集済み repo profile、compact reusable experience card、task-focused context を同じ AiMem DB に保存します。明示的な設計であり、filesystem crawler、会話 transcript の自動取り込み、secret 収集は行いません。
 
 ## Rust の最小例
 

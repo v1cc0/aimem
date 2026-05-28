@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Added private Codex MCP tools to `aimem-mcp`: `codex_record_repo`, `codex_record_experience`, `codex_search_experience`, and `codex_context`. These tools reuse the local AiMem DB for explicit repo profiles and compact coding-experience cards; they do not crawl the filesystem or ingest transcripts automatically.
+
+### Changed
+- Upgraded the workspace Turso stack to stable `0.6.1` and enabled the explicit `fts` feature required by AiMem's Turso FTS index when `default-features = false`.
+
 ## [0.3.9] - 2026-04-26
 
 ### Added

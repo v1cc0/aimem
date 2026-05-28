@@ -36,6 +36,7 @@ AiMem 是面向 AI agent 的 Rust-first 本地记忆基础设施。
 - 面向中文 / 日文检索的 Unicode / CJK / Kana keyword fallback
 - `benchmarks/` 下可复现的英 / 中 / 日文本与确定性多模态 truth benchmark
 - CLI / MCP status 暴露 embedding profile
+- 面向 Codex 的私有 MCP 工具：本地 repo profile、编码经验卡片与任务上下文检索
 - 收窄后的 extractor 与多语言回归测试
 - CI 中的 `cargo audit`
 
@@ -61,6 +62,7 @@ crates/
 - 默认本地 embedding
 - 可选远程 Gemini embedding
 - 面向 agent tooling 的 MCP 接入
+- 基于本地 AiMem DB 的私有 Codex 编码经验工具
 - 仓库内不再依赖 Python runtime
 
 ## Embedding 模式
@@ -216,8 +218,14 @@ aimem-mcp
 - `aimem_check_duplicate`
 - `aimem_add_drawer`
 - `aimem_delete_drawer`
+- `codex_record_repo`
+- `codex_record_experience`
+- `codex_search_experience`
+- `codex_context`
 
 `aimem_status` 也会返回当前 embedding profile。
+
+`codex_*` 工具是面向 Codex 类 agent 的私有、本地编码经验工具。它们把已编辑 repo profile、紧凑可复用 experience card 和任务相关上下文存在同一个 AiMem DB 中。设计上保持显式：不自动爬取文件系统、不自动导入完整对话 transcript，也不采集 secret。
 
 ## 配置
 

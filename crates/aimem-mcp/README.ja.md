@@ -27,10 +27,15 @@ aimem-mcp
 - `aimem_check_duplicate`
 - `aimem_add_drawer`
 - `aimem_delete_drawer`
+- `codex_record_repo`
+- `codex_record_experience`
+- `codex_search_experience`
+- `codex_context`
 
 ## メモ
 
 - `aimem_status` は embedding profile も返します。
 - `aimem_search` は embedder が使える場合に hybrid キーワード + ベクトル検索を使います。
 - keyword fallback は中国語 / 日本語クエリ向けの Unicode / CJK / Kana n-gram scoring を含みます。
+- `codex_*` ツールは Codex 系 agent 向けの private coding-experience layer です。編集済み repo profile、compact experience card、task context を同じローカル AiMem DB に保存します。ファイルシステムの自動クロールや会話 transcript の自動取り込みは行いません。
 - デフォルト DB は `~/.aimem/aimem.db` で、Turso が隣に `.db-wal` / `.db-tshm` sidecar を作成することがあります。

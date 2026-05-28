@@ -40,6 +40,7 @@ The `0.3.x` line introduced the main architectural improvements that were missin
 - Unicode/CJK/Kana-aware keyword fallback for Chinese and Japanese retrieval
 - reproducible EN/ZH/JA text and deterministic multimodal truth benchmarks under `benchmarks/`
 - CLI / MCP status now showing embedding profile
+- private Codex MCP tools for local repo profiles, coding experience cards, and task context retrieval
 - tighter extractor heuristics with multilingual regression tests
 - CI dependency auditing via `cargo audit`
 
@@ -65,6 +66,7 @@ crates/
 - local embedder by default
 - opt-in remote Gemini embedding
 - MCP integration for agent tooling
+- private Codex coding-experience tools over the local AiMem DB
 - no Python runtime in this repository
 
 ## Embedding modes
@@ -223,8 +225,14 @@ Current tools:
 - `aimem_check_duplicate`
 - `aimem_add_drawer`
 - `aimem_delete_drawer`
+- `codex_record_repo`
+- `codex_record_experience`
+- `codex_search_experience`
+- `codex_context`
 
 `aimem_status` also reports the current embedding profile.
+
+The `codex_*` tools are private, local coding-experience tools for Codex-style agents. They store edited repo profiles, compact reusable experience cards, and task-focused context in the same AiMem DB. They are deliberately explicit: no filesystem crawler, no automatic transcript ingestion, and no secret harvesting.
 
 ## Config
 

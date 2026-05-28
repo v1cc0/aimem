@@ -27,10 +27,15 @@ aimem-mcp
 - `aimem_check_duplicate`
 - `aimem_add_drawer`
 - `aimem_delete_drawer`
+- `codex_record_repo`
+- `codex_record_experience`
+- `codex_search_experience`
+- `codex_context`
 
 ## Notes
 
 - `aimem_status` reports the current embedding profile.
 - `aimem_search` uses hybrid keyword + vector ranking when an embedder is available and falls back to keyword search otherwise.
 - Keyword fallback includes Unicode/CJK/Kana n-gram scoring for Chinese and Japanese queries.
+- The `codex_*` tools are a private coding-experience layer for Codex-style agents: they record edited repo profiles, compact experience cards, and task context into the same local AiMem DB. They do **not** crawl your filesystem or ingest transcripts automatically.
 - default DB path is `~/.aimem/aimem.db`; Turso may create `.db-wal` / `.db-tshm` sidecars next to it.
