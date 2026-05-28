@@ -359,6 +359,11 @@ impl ServerState {
                 "confidence",
                 "details",
                 "future_rule",
+                "cwd",
+                "purpose",
+                "result",
+                "output_summary",
+                "summary",
             ],
             &filed_at,
         );
@@ -383,6 +388,84 @@ impl ServerState {
             "drawer": drawer_to_json(drawer),
             "fingerprint": codex_experience_fingerprint(kind, repo_path, arguments),
         }))
+    }
+
+    async fn tool_codex_record_command(&self, arguments: &Map<String, Value>) -> Result<Value> {
+        let repo_path = required_str(arguments, "repo_path")?;
+        let command = required_str(arguments, "command")?;
+        let purpose = arguments
+            .get("purpose")
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+            .unwrap_or("Verification command");
+        let result = arguments
+            .get("result")
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+            .unwrap_or("recorded");
+
+        let mut card = arguments.clone();
+        card.insert("kind".to_string(), Value::String("command".to_string()));
+        card.insert(
+            "problem".to_string(),
+            Value::String(format!("Command: {command}")),
+        );
+        card.insert(
+            "solution".to_string(),
+            Value::String(format!("{purpose} -> {result}")),
+        );
+        card.insert("outcome".to_string(), Value::String(result.to_string()));
+        card.entry("commands".to_string())
+            .or_insert_with(|| Value::Array(vec![Value::String(command.to_string())]));
+        card.entry("details".to_string()).or_insert_with(|| {
+            Value::String(format!(
+                "cwd: {}\npurpose: {}\nresult: {}",
+                arguments
+                    .get("cwd")
+                    .and_then(Value::as_str)
+                    .unwrap_or(repo_path),
+                purpose,
+                result
+            ))
+        });
+
+        self.tool_codex_record_experience(&card).await
+    }
+
+    async fn tool_codex_record_round_summary(
+        &self,
+        arguments: &Map<String, Value>,
+    ) -> Result<Value> {
+        let repo_path = required_str(arguments, "repo_path")?;
+        let summary = required_str(arguments, "summary")?;
+        let mut card = arguments.clone();
+        card.insert(
+            "kind".to_string(),
+            Value::String("round_summary".to_string()),
+        );
+        card.insert(
+            "problem".to_string(),
+            Value::String("Coding round handoff summary".to_string()),
+        );
+        card.insert("solution".to_string(), Value::String(summary.to_string()));
+        card.insert("outcome".to_string(), Value::String(summary.to_string()));
+        card.entry("details".to_string()).or_insert_with(|| {
+            let mut details = vec![format!("summary: {summary}")];
+            if let Some(next_steps) = string_array(arguments.get("next_steps")) {
+                details.push("next_steps:".to_string());
+                details.extend(next_steps.into_iter().map(|step| format!("- {step}")));
+            }
+            Value::String(details.join("\n"))
+        });
+
+        let mut response = self.tool_codex_record_experience(&card).await?;
+        if let Some(object) = response.as_object_mut() {
+            object.insert(
+                "repo_path".to_string(),
+                Value::String(repo_path.to_string()),
+            );
+        }
+        Ok(response)
     }
 
     async fn tool_codex_search_experience(&self, arguments: &Map<String, Value>) -> Result<Value> {
@@ -751,6 +834,8 @@ async fn handle_tool_call(state: &ServerState, req_id: Value, params: &Value) ->
         }
         "codex_record_repo" => state.tool_codex_record_repo(&arguments).await,
         "codex_record_experience" => state.tool_codex_record_experience(&arguments).await,
+        "codex_record_command" => state.tool_codex_record_command(&arguments).await,
+        "codex_record_round_summary" => state.tool_codex_record_round_summary(&arguments).await,
         "codex_search_experience" => state.tool_codex_search_experience(&arguments).await,
         "codex_context" => state.tool_codex_context(&arguments).await,
         _ => return error_response(req_id, -32601, &format!("Unknown tool: {tool_name}")),
@@ -887,6 +972,43 @@ fn tool_specs() -> Vec<Value> {
                     "commands": { "type": "array", "items": { "type": "string" } }
                 },
                 "required": ["repo_path", "problem", "solution"]
+            }),
+        ),
+        tool_spec(
+            "codex_record_command",
+            "Record a verification or diagnostic command as a reusable Codex experience card.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "repo_path": { "type": "string" },
+                    "repo_name": { "type": "string" },
+                    "language": { "type": "string" },
+                    "command": { "type": "string" },
+                    "cwd": { "type": "string" },
+                    "purpose": { "type": "string" },
+                    "result": { "type": "string" },
+                    "output_summary": { "type": "string" },
+                    "tags": { "type": "array", "items": { "type": "string" } }
+                },
+                "required": ["repo_path", "command"]
+            }),
+        ),
+        tool_spec(
+            "codex_record_round_summary",
+            "Record a coding-round handoff summary with changed files, tests, and next steps.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "repo_path": { "type": "string" },
+                    "repo_name": { "type": "string" },
+                    "language": { "type": "string" },
+                    "summary": { "type": "string" },
+                    "changed_files": { "type": "array", "items": { "type": "string" } },
+                    "commands": { "type": "array", "items": { "type": "string" } },
+                    "next_steps": { "type": "array", "items": { "type": "string" } },
+                    "tags": { "type": "array", "items": { "type": "string" } }
+                },
+                "required": ["repo_path", "summary"]
             }),
         ),
         tool_spec(
@@ -1263,6 +1385,7 @@ fn codex_room_for_kind(kind: &str) -> &'static str {
         "incident" => "incident",
         "decision" => "architecture",
         "command" => "workflow",
+        "round_summary" => "workflow",
         "release" => "release",
         "dependency" => "dependency",
         "test" | "testing" => "testing",
@@ -1345,6 +1468,8 @@ fn format_codex_card(
         "commands",
         "manifests",
         "test_commands",
+        "changed_files",
+        "next_steps",
     ] {
         if let Some(items) = string_array(arguments.get(key)) {
             if !items.is_empty() {
@@ -1591,6 +1716,8 @@ mod tests {
         assert!(names.contains(&"aimem_delete_drawer"));
         assert!(names.contains(&"codex_record_repo"));
         assert!(names.contains(&"codex_record_experience"));
+        assert!(names.contains(&"codex_record_command"));
+        assert!(names.contains(&"codex_record_round_summary"));
         assert!(names.contains(&"codex_search_experience"));
         assert!(names.contains(&"codex_context"));
     }
@@ -1867,6 +1994,84 @@ mod tests {
         );
     }
 
+    #[tokio::test]
+    async fn codex_record_command_is_searchable() {
+        let state = test_state("codex-command").await;
+
+        let recorded = call_tool(
+            &state,
+            "codex_record_command",
+            json!({
+                "repo_path": "/tmp/aimem",
+                "language": "rust",
+                "command": "cargo test -p aimem-mcp",
+                "cwd": "/tmp/aimem",
+                "purpose": "Verify MCP tool handlers",
+                "result": "passed",
+                "output_summary": "13 tests passed"
+            }),
+        )
+        .await;
+
+        assert_eq!(recorded["recorded"], true);
+        assert!(
+            recorded["drawer"]["content"]
+                .as_str()
+                .expect("content")
+                .contains("kind: command")
+        );
+
+        let found = call_tool(
+            &state,
+            "codex_search_experience",
+            json!({
+                "query": "cargo test aimem mcp",
+                "repo_path": "/tmp/aimem",
+                "kind": "command",
+                "limit": 3
+            }),
+        )
+        .await;
+        assert_eq!(found["results"].as_array().expect("results").len(), 1);
+    }
+
+    #[tokio::test]
+    async fn codex_record_round_summary_is_searchable() {
+        let state = test_state("codex-round").await;
+
+        let recorded = call_tool(
+            &state,
+            "codex_record_round_summary",
+            json!({
+                "repo_path": "/tmp/aimem",
+                "language": "rust",
+                "summary": "Implemented private MCP command and round summary tools.",
+                "changed_files": ["crates/aimem-mcp/src/main.rs"],
+                "commands": ["cargo test -p aimem-mcp"],
+                "next_steps": ["Add smoke-test examples"]
+            }),
+        )
+        .await;
+
+        assert_eq!(recorded["recorded"], true);
+        let content = recorded["drawer"]["content"].as_str().expect("content");
+        assert!(content.contains("kind: round_summary"));
+        assert!(content.contains("changed_files:"));
+        assert!(content.contains("next_steps:"));
+
+        let found = call_tool(
+            &state,
+            "codex_search_experience",
+            json!({
+                "query": "private MCP command round summary",
+                "repo_path": "/tmp/aimem",
+                "kind": "round_summary",
+                "limit": 3
+            }),
+        )
+        .await;
+        assert_eq!(found["results"].as_array().expect("results").len(), 1);
+    }
     #[tokio::test]
     async fn codex_context_ranks_same_repo_and_incidents_first() {
         let state = test_state("codex-rank").await;
