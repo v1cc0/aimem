@@ -366,7 +366,6 @@ impl ServerState {
                 "solution",
                 "outcome",
                 "confidence",
-                "details",
                 "future_rule",
                 "cwd",
                 "purpose",
