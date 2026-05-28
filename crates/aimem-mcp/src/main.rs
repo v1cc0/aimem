@@ -16,6 +16,11 @@ const AIMEM_PROTOCOL: &str = "IMPORTANT — AiMem Memory Protocol:\n1. ON WAKE-U
 
 const AAAK_SPEC: &str = "AAAK is AiMem's compressed memory dialect.\n- ENTITIES: short uppercase codes\n- EMOTIONS: *markers* inline\n- STRUCTURE: compact pipe-separated fields\n- DATES: ISO-8601\nRead it naturally; write it tightly.";
 
+const CODEX_REPO_WING: &str = "codex_repo";
+const CODEX_EXPERIENCE_WING: &str = "codex_experience";
+const CODEX_INCIDENT_WING: &str = "codex_incident";
+const CODEX_DEFAULT_LIMIT: usize = 5;
+
 #[derive(Clone)]
 struct ServerState {
     cfg: Config,
@@ -287,6 +292,182 @@ impl ServerState {
         }))
     }
 
+    async fn tool_codex_record_repo(&self, arguments: &Map<String, Value>) -> Result<Value> {
+        let repo_path = required_str(arguments, "repo_path")?;
+        let filed_at = Utc::now().to_rfc3339();
+        let content = format_codex_card(
+            "repo_profile",
+            repo_path,
+            arguments,
+            &["repo_name", "git_remote", "git_head", "language", "summary"],
+            &filed_at,
+        );
+        let id = codex_stable_id("repo", repo_path);
+        let _ = self.db.delete_drawer(&id).await?;
+        let drawer = Drawer::new(
+            id.clone(),
+            CODEX_REPO_WING,
+            "repo_profile",
+            content,
+            "codex_mcp",
+        )
+        .with_source_file(repo_path)
+        .with_filed_at(filed_at);
+        let inserted = self.db.insert_drawer(&drawer, None).await?;
+
+        Ok(json!({
+            "recorded": inserted,
+            "updated": true,
+            "drawer": drawer_to_json(drawer),
+        }))
+    }
+
+    async fn tool_codex_record_experience(&self, arguments: &Map<String, Value>) -> Result<Value> {
+        let repo_path = required_str(arguments, "repo_path")?;
+        let kind = arguments
+            .get("kind")
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+            .unwrap_or("experience");
+        let room = codex_room_for_kind(kind);
+        let wing = if kind == "incident" {
+            CODEX_INCIDENT_WING
+        } else {
+            CODEX_EXPERIENCE_WING
+        };
+        let filed_at = Utc::now().to_rfc3339();
+        let content = format_codex_card(
+            kind,
+            repo_path,
+            arguments,
+            &[
+                "repo_name",
+                "language",
+                "problem",
+                "solution",
+                "outcome",
+                "confidence",
+                "details",
+                "future_rule",
+            ],
+            &filed_at,
+        );
+        let duplicate = self.db.find_drawers_by_exact_content(&content, 1).await?;
+        if let Some(existing) = duplicate.into_iter().next() {
+            return Ok(json!({
+                "recorded": false,
+                "duplicate": true,
+                "drawer": drawer_to_json(existing),
+            }));
+        }
+
+        let id = codex_event_id(kind, repo_path, &content, &filed_at);
+        let drawer = Drawer::new(id.clone(), wing, room, content, "codex_mcp")
+            .with_source_file(repo_path)
+            .with_filed_at(filed_at);
+        let inserted = self.db.insert_drawer(&drawer, None).await?;
+
+        Ok(json!({
+            "recorded": inserted,
+            "duplicate": false,
+            "drawer": drawer_to_json(drawer),
+        }))
+    }
+
+    async fn tool_codex_search_experience(&self, arguments: &Map<String, Value>) -> Result<Value> {
+        let query = required_str(arguments, "query")?;
+        let limit = positive_usize(arguments, "limit").unwrap_or(CODEX_DEFAULT_LIMIT);
+        let repo_path = arguments.get("repo_path").and_then(Value::as_str);
+        let language = arguments.get("language").and_then(Value::as_str);
+        let kind = arguments.get("kind").and_then(Value::as_str);
+        let mut hits = self
+            .codex_search_drawers(query, repo_path, language, kind, limit)
+            .await?;
+        hits.truncate(limit);
+
+        Ok(json!({
+            "query": query,
+            "repo_path": repo_path,
+            "language": language,
+            "kind": kind,
+            "results": hits.into_iter().map(drawer_to_json).collect::<Vec<_>>(),
+        }))
+    }
+
+    async fn tool_codex_context(&self, arguments: &Map<String, Value>) -> Result<Value> {
+        let repo_path = required_str(arguments, "repo_path")?;
+        let task = arguments
+            .get("task")
+            .and_then(Value::as_str)
+            .unwrap_or(repo_path);
+        let limit = positive_usize(arguments, "limit").unwrap_or(CODEX_DEFAULT_LIMIT);
+
+        let profiles = self
+            .db
+            .fetch_drawers(Some(CODEX_REPO_WING), Some("repo_profile"), 25)
+            .await?
+            .into_iter()
+            .filter(|drawer| {
+                drawer.content.contains(repo_path)
+                    || drawer.source_file.as_deref() == Some(repo_path)
+            })
+            .collect::<Vec<_>>();
+
+        let incidents = self
+            .db
+            .fetch_drawers(Some(CODEX_INCIDENT_WING), None, limit)
+            .await?
+            .into_iter()
+            .filter(|drawer| drawer.content.contains(repo_path))
+            .collect::<Vec<_>>();
+
+        let relevant = self
+            .codex_search_drawers(task, Some(repo_path), None, None, limit)
+            .await?;
+
+        Ok(json!({
+            "repo_path": repo_path,
+            "task": task,
+            "protocol": "Read local AGENTS/INCIDENTS/PROGRESS first; use these MCP records as searchable experience, not as authority over live repo files.",
+            "repo_profile": profiles.into_iter().map(drawer_to_json).collect::<Vec<_>>(),
+            "recent_incidents": incidents.into_iter().map(drawer_to_json).collect::<Vec<_>>(),
+            "relevant_experiences": relevant.into_iter().take(limit).map(drawer_to_json).collect::<Vec<_>>(),
+        }))
+    }
+
+    async fn codex_search_drawers(
+        &self,
+        query: &str,
+        repo_path: Option<&str>,
+        language: Option<&str>,
+        kind: Option<&str>,
+        limit: usize,
+    ) -> Result<Vec<Drawer>> {
+        let searcher = Searcher::keyword_only(self.db.clone());
+        let search_limit = limit.saturating_mul(4).max(16);
+        let mut results = Vec::new();
+
+        for wing in [CODEX_EXPERIENCE_WING, CODEX_INCIDENT_WING] {
+            let mut drawers = searcher
+                .keyword_fallback_search(query, Some(wing), None, search_limit)
+                .await?;
+            results.append(&mut drawers);
+        }
+
+        let mut seen = std::collections::BTreeSet::new();
+        results.retain(|drawer| {
+            seen.insert(drawer.id.clone())
+                && repo_path.is_none_or(|value| {
+                    drawer.content.contains(value) || drawer.source_file.as_deref() == Some(value)
+                })
+                && language
+                    .is_none_or(|value| drawer.content.contains(&format!("language: {value}")))
+                && kind.is_none_or(|value| drawer.content.contains(&format!("kind: {value}")))
+        });
+
+        Ok(results)
+    }
+
     async fn room_counts(&self, wing: Option<&str>) -> Result<BTreeMap<String, i64>> {
         let conn = self.db.conn()?;
         let mut rows = match wing {
@@ -538,6 +719,10 @@ async fn handle_tool_call(state: &ServerState, req_id: Value, params: &Value) ->
             };
             state.tool_delete_drawer(drawer_id).await
         }
+        "codex_record_repo" => state.tool_codex_record_repo(&arguments).await,
+        "codex_record_experience" => state.tool_codex_record_experience(&arguments).await,
+        "codex_search_experience" => state.tool_codex_search_experience(&arguments).await,
+        "codex_context" => state.tool_codex_context(&arguments).await,
         _ => return error_response(req_id, -32601, &format!("Unknown tool: {tool_name}")),
     };
 
@@ -632,6 +817,73 @@ fn tool_specs() -> Vec<Value> {
                 "required": ["drawer_id"]
             }),
         ),
+        tool_spec(
+            "codex_record_repo",
+            "Record or update a Codex-edited repository profile for future coding context.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "repo_path": { "type": "string" },
+                    "repo_name": { "type": "string" },
+                    "git_remote": { "type": "string" },
+                    "git_head": { "type": "string" },
+                    "language": { "type": "string" },
+                    "summary": { "type": "string" }
+                },
+                "required": ["repo_path"]
+            }),
+        ),
+        tool_spec(
+            "codex_record_experience",
+            "Record a compact reusable coding experience card.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "repo_path": { "type": "string" },
+                    "repo_name": { "type": "string" },
+                    "language": { "type": "string" },
+                    "kind": { "type": "string" },
+                    "problem": { "type": "string" },
+                    "solution": { "type": "string" },
+                    "outcome": { "type": "string" },
+                    "confidence": { "type": "string" },
+                    "details": { "type": "string" },
+                    "future_rule": { "type": "string" },
+                    "tags": { "type": "array", "items": { "type": "string" } },
+                    "source_files": { "type": "array", "items": { "type": "string" } },
+                    "commands": { "type": "array", "items": { "type": "string" } }
+                },
+                "required": ["repo_path", "problem", "solution"]
+            }),
+        ),
+        tool_spec(
+            "codex_search_experience",
+            "Search private Codex coding experience cards.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "query": { "type": "string" },
+                    "repo_path": { "type": "string" },
+                    "language": { "type": "string" },
+                    "kind": { "type": "string" },
+                    "limit": { "type": "integer" }
+                },
+                "required": ["query"]
+            }),
+        ),
+        tool_spec(
+            "codex_context",
+            "Return repo-prioritized Codex context and relevant coding experiences for a task.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "repo_path": { "type": "string" },
+                    "task": { "type": "string" },
+                    "limit": { "type": "integer" }
+                },
+                "required": ["repo_path"]
+            }),
+        ),
     ]
 }
 
@@ -712,6 +964,131 @@ fn hybrid_search_result_to_json(result: HybridSearchResult) -> Value {
         "semantic_similarity": result.semantic_similarity,
         "keyword_score": result.keyword_score,
     })
+}
+
+fn required_str<'a>(arguments: &'a Map<String, Value>, key: &str) -> Result<&'a str> {
+    arguments
+        .get(key)
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| anyhow::anyhow!("missing required `{key}`"))
+}
+
+fn codex_room_for_kind(kind: &str) -> &'static str {
+    match kind {
+        "incident" => "incident",
+        "decision" => "architecture",
+        "command" => "workflow",
+        "release" => "release",
+        "dependency" => "dependency",
+        "test" | "testing" => "testing",
+        "style" => "style",
+        _ => "workflow",
+    }
+}
+
+fn codex_stable_id(kind: &str, repo_path: &str) -> String {
+    let digest = md5::compute(format!("codex\u{1f}{kind}\u{1f}{repo_path}").as_bytes());
+    format!("codex_{kind}_{digest:x}")
+}
+
+fn codex_event_id(kind: &str, repo_path: &str, content: &str, filed_at: &str) -> String {
+    let digest = md5::compute(
+        format!("codex\u{1f}{kind}\u{1f}{repo_path}\u{1f}{content}\u{1f}{filed_at}").as_bytes(),
+    );
+    format!(
+        "codex_{}_{}",
+        slugish(kind),
+        hex_prefix(&format!("{digest:x}"), 24)
+    )
+}
+
+fn hex_prefix(value: &str, len: usize) -> &str {
+    let end = value.len().min(len);
+    &value[..end]
+}
+
+fn format_codex_card(
+    kind: &str,
+    repo_path: &str,
+    arguments: &Map<String, Value>,
+    scalar_keys: &[&str],
+    filed_at: &str,
+) -> String {
+    let mut lines = Vec::new();
+    lines.push(format!("repo_path: {}", sanitize_codex_value(repo_path)));
+    lines.push(format!("kind: {}", sanitize_codex_value(kind)));
+    lines.push(format!("created_at: {filed_at}"));
+
+    for key in scalar_keys {
+        if let Some(value) = arguments.get(*key).and_then(Value::as_str) {
+            if !value.is_empty() {
+                lines.push(format!("{key}: {}", sanitize_codex_value(value)));
+            }
+        }
+    }
+
+    for key in ["tags", "source_files", "commands"] {
+        if let Some(items) = string_array(arguments.get(key)) {
+            if !items.is_empty() {
+                lines.push(format!("{key}:"));
+                for item in items {
+                    lines.push(format!("  - {}", sanitize_codex_value(&item)));
+                }
+            }
+        }
+    }
+
+    lines.push("---".to_string());
+    if let Some(details) = arguments.get("details").and_then(Value::as_str) {
+        if !details.is_empty() {
+            lines.push("Details:".to_string());
+            lines.push(sanitize_codex_value(details));
+        }
+    }
+    if let Some(rule) = arguments.get("future_rule").and_then(Value::as_str) {
+        if !rule.is_empty() {
+            lines.push("Future Codex rule:".to_string());
+            lines.push(format!("- {}", sanitize_codex_value(rule)));
+        }
+    }
+
+    lines.join("\n")
+}
+
+fn string_array(value: Option<&Value>) -> Option<Vec<String>> {
+    let array = value?.as_array()?;
+    Some(
+        array
+            .iter()
+            .filter_map(Value::as_str)
+            .filter(|item| !item.is_empty())
+            .map(ToString::to_string)
+            .collect(),
+    )
+}
+
+fn sanitize_codex_value(value: &str) -> String {
+    value
+        .lines()
+        .map(redact_secretish_line)
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn redact_secretish_line(line: &str) -> String {
+    let upper = line.to_ascii_uppercase();
+    let secretish = ["TOKEN", "SECRET", "PASSWORD", "API_KEY", "PRIVATE KEY"];
+    if secretish.iter().any(|needle| upper.contains(needle)) {
+        if let Some((key, _)) = line.split_once('=') {
+            return format!("{}=<redacted>", key.trim());
+        }
+        if let Some((key, _)) = line.split_once(':') {
+            return format!("{}: <redacted>", key.trim());
+        }
+        return "<redacted secret-like line>".to_string();
+    }
+    line.to_string()
 }
 
 fn drawer_id(
@@ -895,6 +1272,10 @@ mod tests {
         assert!(names.contains(&"aimem_check_duplicate"));
         assert!(names.contains(&"aimem_add_drawer"));
         assert!(names.contains(&"aimem_delete_drawer"));
+        assert!(names.contains(&"codex_record_repo"));
+        assert!(names.contains(&"codex_record_experience"));
+        assert!(names.contains(&"codex_search_experience"));
+        assert!(names.contains(&"codex_context"));
     }
 
     #[tokio::test]
@@ -975,6 +1356,144 @@ mod tests {
         assert_eq!(state.db.drawer_count().await.expect("drawer count"), 1);
     }
 
+    #[tokio::test]
+    async fn codex_record_repo_upserts_profile() {
+        let state = test_state("codex-repo").await;
+
+        let first = call_tool(
+            &state,
+            "codex_record_repo",
+            json!({
+                "repo_path": "/tmp/demo",
+                "repo_name": "demo",
+                "language": "rust",
+                "summary": "Private MCP test repo."
+            }),
+        )
+        .await;
+        let second = call_tool(
+            &state,
+            "codex_record_repo",
+            json!({
+                "repo_path": "/tmp/demo",
+                "repo_name": "demo",
+                "language": "rust",
+                "summary": "Updated profile."
+            }),
+        )
+        .await;
+
+        assert_eq!(first["recorded"], true);
+        assert_eq!(second["recorded"], true);
+        assert_eq!(state.db.drawer_count().await.expect("drawer count"), 1);
+        assert!(
+            second["drawer"]["content"]
+                .as_str()
+                .expect("content")
+                .contains("Updated profile")
+        );
+    }
+
+    #[tokio::test]
+    async fn codex_record_and_search_experience() {
+        let state = test_state("codex-experience").await;
+
+        let recorded = call_tool(
+            &state,
+            "codex_record_experience",
+            json!({
+                "repo_path": "/tmp/aimem",
+                "repo_name": "aimem",
+                "language": "rust",
+                "kind": "dependency",
+                "problem": "Turso 0.6.1 requires the fts feature for USING fts indexes.",
+                "solution": "Enable the turso fts feature explicitly when default features are disabled.",
+                "outcome": "MCP tests pass again.",
+                "confidence": "high",
+                "source_files": ["Cargo.toml"],
+                "commands": ["cargo test -p aimem-mcp"]
+            }),
+        )
+        .await;
+
+        assert_eq!(recorded["recorded"], true);
+        assert_eq!(recorded["drawer"]["wing"], CODEX_EXPERIENCE_WING);
+
+        let found = call_tool(
+            &state,
+            "codex_search_experience",
+            json!({
+                "query": "Turso fts feature",
+                "repo_path": "/tmp/aimem",
+                "language": "rust",
+                "kind": "dependency",
+                "limit": 3
+            }),
+        )
+        .await;
+
+        let results = found["results"].as_array().expect("results array");
+        assert_eq!(results.len(), 1);
+        assert!(
+            results[0]["content"]
+                .as_str()
+                .expect("content")
+                .contains("fts feature")
+        );
+    }
+
+    #[tokio::test]
+    async fn codex_context_returns_profile_and_relevant_experience() {
+        let state = test_state("codex-context").await;
+
+        call_tool(
+            &state,
+            "codex_record_repo",
+            json!({
+                "repo_path": "/tmp/context-demo",
+                "repo_name": "context-demo",
+                "language": "rust",
+                "summary": "Demo repo profile."
+            }),
+        )
+        .await;
+        call_tool(
+            &state,
+            "codex_record_experience",
+            json!({
+                "repo_path": "/tmp/context-demo",
+                "language": "rust",
+                "kind": "testing",
+                "problem": "MCP handlers need regression tests.",
+                "solution": "Call tools through JSON-RPC helper tests.",
+                "outcome": "Tool payloads are verified."
+            }),
+        )
+        .await;
+
+        let context = call_tool(
+            &state,
+            "codex_context",
+            json!({
+                "repo_path": "/tmp/context-demo",
+                "task": "MCP regression tests",
+                "limit": 5
+            }),
+        )
+        .await;
+
+        assert_eq!(
+            context["repo_profile"].as_array().expect("profiles").len(),
+            1
+        );
+        assert_eq!(
+            context["relevant_experiences"]
+                .as_array()
+                .expect("experiences")
+                .len(),
+            1
+        );
+    }
     #[tokio::test]
     async fn delete_drawer_removes_existing_row() {
         let state = test_state("delete").await;
