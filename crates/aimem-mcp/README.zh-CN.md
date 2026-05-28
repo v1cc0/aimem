@@ -42,3 +42,4 @@ aimem-mcp
 - keyword fallback 包含面向中文 / 日文查询的 Unicode / CJK / Kana n-gram scoring。
 - `codex_*` 工具是面向 Codex 类 agent 的私有编码经验层：把已编辑 repo profile、紧凑 experience card 和任务上下文写入同一个本地 AiMem DB。`codex_record_repo` 只围绕显式传入的 `repo_path` 做保守检测（repo root、已知 manifest、可能的 test commands、`.git` HEAD/origin）。`codex_record_command` 会记录验证 / 诊断命令；`codex_record_round_summary` 会记录 handoff summary、changed files、commands 和 next steps。`codex_context` 会用同 repo、incident、同 language 和关键词重叠 boost 对相关卡片排序。experience card 使用基于 repo/kind/problem/solution 的稳定指纹做重复检测。`codex_delete_experience` 可按 drawer ID 删除私有 Codex 卡片。它们**不会**自动爬取文件系统，也不会自动导入完整对话 transcript。
 - 默认 DB 路径为 `~/.aimem/aimem.db`；Turso 可能在旁边创建 `.db-wal` / `.db-tshm` sidecar。
+- Private Codex MCP smoke test: [`docs/private-codex-mcp-smoke-test.md`](https://github.com/v1cc0/aimem/blob/main/docs/private-codex-mcp-smoke-test.md)
