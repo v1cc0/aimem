@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file.
 - Added `codex_delete_experience` as a narrow cleanup wrapper for deleting private Codex cards by drawer ID.
 - Added `docs/private-codex-mcp-smoke-test.md` with a minimal JSON-RPC smoke test for record/search/context/delete flows.
 - Verified the private Codex MCP smoke-test flow against the real stdio server and removed duplicate `details` rendering from command / round-summary cards.
+- Documented and tested fingerprint semantics for command and round-summary cards: exact replays dedupe, but changed results / summaries create new evidence.
 
 ### Changed
 - Upgraded the workspace Turso stack to stable `0.6.1` and enabled the explicit `fts` feature required by AiMem's Turso FTS index when `default-features = false`.

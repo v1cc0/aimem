@@ -2105,6 +2105,64 @@ mod tests {
         .await;
         assert_eq!(found["results"].as_array().expect("results").len(), 1);
     }
+
+    #[tokio::test]
+    async fn codex_command_fingerprint_skips_replay_but_records_changed_result() {
+        let state = test_state("codex-command-fingerprint").await;
+        let base = json!({
+            "repo_path": "/tmp/aimem",
+            "language": "rust",
+            "command": "cargo test -p aimem-mcp",
+            "purpose": "Verify MCP tool handlers",
+            "result": "passed"
+        });
+        let changed = json!({
+            "repo_path": "/tmp/aimem",
+            "language": "rust",
+            "command": "cargo test -p aimem-mcp",
+            "purpose": "Verify MCP tool handlers",
+            "result": "failed"
+        });
+
+        let first = call_tool(&state, "codex_record_command", base.clone()).await;
+        let replay = call_tool(&state, "codex_record_command", base).await;
+        let changed = call_tool(&state, "codex_record_command", changed).await;
+
+        assert_eq!(first["recorded"], true);
+        assert_eq!(replay["recorded"], false);
+        assert_eq!(replay["duplicate"], true);
+        assert_ne!(first["fingerprint"], changed["fingerprint"]);
+        assert_eq!(changed["recorded"], true);
+        assert_eq!(state.db.drawer_count().await.expect("drawer count"), 2);
+    }
+
+    #[tokio::test]
+    async fn codex_round_summary_fingerprint_skips_replay_but_records_changed_summary() {
+        let state = test_state("codex-round-fingerprint").await;
+        let base = json!({
+            "repo_path": "/tmp/aimem",
+            "language": "rust",
+            "summary": "Implemented command records.",
+            "commands": ["cargo test -p aimem-mcp"]
+        });
+        let changed = json!({
+            "repo_path": "/tmp/aimem",
+            "language": "rust",
+            "summary": "Implemented command records and smoke docs.",
+            "commands": ["cargo test -p aimem-mcp"]
+        });
+
+        let first = call_tool(&state, "codex_record_round_summary", base.clone()).await;
+        let replay = call_tool(&state, "codex_record_round_summary", base).await;
+        let changed = call_tool(&state, "codex_record_round_summary", changed).await;
+
+        assert_eq!(first["recorded"], true);
+        assert_eq!(replay["recorded"], false);
+        assert_eq!(replay["duplicate"], true);
+        assert_ne!(first["fingerprint"], changed["fingerprint"]);
+        assert_eq!(changed["recorded"], true);
+        assert_eq!(state.db.drawer_count().await.expect("drawer count"), 2);
+    }
     #[tokio::test]
     async fn codex_context_ranks_same_repo_and_incidents_first() {
         let state = test_state("codex-rank").await;
