@@ -25,6 +25,10 @@ Current `aimem-core` includes:
 
 - async embedding flow
 - `LocalEmbedder`
+- runs [`onnx-community/embeddinggemma-2-ONNX`](https://huggingface.co/onnx-community/embeddinggemma-2-ONNX) through ONNX Runtime using Q8 text weights and normalized `768d` vectors
+- downloads about 314 MB of weights plus the tokenizer to the Hugging Face cache on first use (`HF_HOME` / `HF_HUB_CACHE` supported); works offline once cached
+- embeds text only, preserving text extraction from multimodal inputs; truncates at 8,192 tokens
+- `embed` / `embed_one` add the document prefix; `embed_query` adds the retrieval query prefix, which `Searcher` uses automatically
 - opt-in `Gemini2Embedder`
 - multimodal `ContentPart`
 - embedding profile metadata:
@@ -80,6 +84,10 @@ use aimem_core::{AimemDb, Drawer, LocalEmbedder, MemoryStack, Miner, Searcher};
 ### Local
 
 - `LocalEmbedder`
+- runs [`onnx-community/embeddinggemma-2-ONNX`](https://huggingface.co/onnx-community/embeddinggemma-2-ONNX) through ONNX Runtime using Q8 text weights and normalized `768d` vectors
+- downloads about 314 MB of weights plus the tokenizer to the Hugging Face cache on first use (`HF_HOME` / `HF_HUB_CACHE` supported); works offline once cached
+- embeds text only, preserving text extraction from multimodal inputs; truncates at 8,192 tokens
+- `embed` / `embed_one` add the document prefix; `embed_query` adds the retrieval query prefix, which `Searcher` uses automatically
 - default recommendation
 - embedding stays local
 
@@ -99,7 +107,7 @@ URI-only multimedia parts are not automatically read from disk and uploaded.
 - model
 - dimension
 
-This prevents silent mixing of incompatible embedding stores.
+Legacy MiniLM `384d` vectors cannot be mixed with the new local `768d` vectors. Local EmbeddingGemma 2 and remote Gemini also cannot share a store even though both produce `768d` vectors. To migrate, rebuild a separate database from the original text; existing databases are never converted or deleted automatically.
 
 ## Drawer helpers
 

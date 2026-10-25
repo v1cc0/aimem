@@ -21,6 +21,10 @@
 
 - async embedding flow
 - `LocalEmbedder`
+- ONNX Runtime で [`onnx-community/embeddinggemma-2-ONNX`](https://huggingface.co/onnx-community/embeddinggemma-2-ONNX) の Q8 テキストモデルを実行し、正規化された `768d` ベクトルを生成
+- 初回に約 314 MB の重みと tokenizer を Hugging Face cache に取得（`HF_HOME` / `HF_HUB_CACHE` 対応）。取得後はオフライン実行可能
+- ローカルではテキストのみ処理し、multimodal input からのテキスト抽出は従来どおり。最大 8,192 token
+- `embed` / `embed_one` は文書 prefix、`embed_query` は検索 prefix を付加。`Searcher` は query API を使用
 - opt-in `Gemini2Embedder`
 - embedding profile: provider / model / dimension
 - mixed store を防ぐ profile guard
@@ -49,6 +53,10 @@ use aimem_core::prelude::*;
 
 ### Local
 - `LocalEmbedder`
+- ONNX Runtime で [`onnx-community/embeddinggemma-2-ONNX`](https://huggingface.co/onnx-community/embeddinggemma-2-ONNX) の Q8 テキストモデルを実行し、正規化された `768d` ベクトルを生成
+- 初回に約 314 MB の重みと tokenizer を Hugging Face cache に取得（`HF_HOME` / `HF_HUB_CACHE` 対応）。取得後はオフライン実行可能
+- ローカルではテキストのみ処理し、multimodal input からのテキスト抽出は従来どおり。最大 8,192 token
+- `embed` / `embed_one` は文書 prefix、`embed_query` は検索 prefix を付加。`Searcher` は query API を使用
 - デフォルト推奨
 
 ### Remote
@@ -65,6 +73,8 @@ semantic write / query は以下で検証されます：
 - provider
 - model
 - dimension
+
+旧 MiniLM の `384d`、ローカル EmbeddingGemma 2 の `768d`、リモート Gemini の `768d` は混在できません。移行時は元のテキストから別の DB を再作成してください。既存 DB の自動変換や削除は行いません。
 
 ## Drawer helper
 

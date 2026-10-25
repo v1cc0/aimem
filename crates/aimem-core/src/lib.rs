@@ -13,7 +13,7 @@
 //! | Vector storage | Turso `vector32()` BLOB column |
 //! | Semantic search | `vector_distance_cos()` — SimSIMD-accelerated cosine |
 //! | Full-text search | Turso FTS / Tantivy (`fts_match`, `fts_score`) |
-//! | Embedding generation | Gemini 2.0 (Remote) or `fastembed` (Local) |
+//! | Embedding generation | Gemini 2.0 (Remote) or EmbeddingGemma 2 ONNX (Local) |
 //! | Knowledge graph | Temporal entity-relationship triples in SQLite |
 //! | Graph traversal | BFS over wing/room adjacency — no graph DB needed |
 //!

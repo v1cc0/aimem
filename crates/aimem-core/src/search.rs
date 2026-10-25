@@ -85,7 +85,7 @@ impl Searcher {
             .embedder
             .as_ref()
             .ok_or(SearchError::EmbedderUnavailable)?;
-        let qvec = embedder.embed_one(query).await?;
+        let qvec = embedder.embed_query(query).await?;
         self.db
             .assert_embedding_profile(qvec.len(), embedder.provider_name(), embedder.model_name())
             .await?;

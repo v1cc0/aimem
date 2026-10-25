@@ -182,7 +182,7 @@ fn load_embedder(gemini_key: Option<&str>) -> Result<Arc<dyn Embedder>> {
         tracing::info!("using Gemini 2.0 remote embedding");
         Ok(Arc::new(Gemini2Embedder::new(key.to_string())))
     } else {
-        tracing::info!("using local fastembed-rs model (all-MiniLM-L6-v2)");
+        tracing::info!("using local ONNX EmbeddingGemma 2 model (768 dimensions)");
         Ok(Arc::new(LocalEmbedder::new().context(
             "failed to load local embedding model; try setting GEMINI_API_KEY for remote embedding",
         )?))

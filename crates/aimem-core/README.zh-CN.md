@@ -25,6 +25,10 @@ CLI 在 `aimem-cli`，MCP server 在 `aimem-mcp`。
 
 - async embedding flow
 - `LocalEmbedder`
+- 基于 ONNX Runtime 的 [`onnx-community/embeddinggemma-2-ONNX`](https://huggingface.co/onnx-community/embeddinggemma-2-ONNX)，使用 Q8 文本模型，输出归一化的 `768d` 向量
+- 首次运行下载约 314 MB 权重及分词器到 Hugging Face 缓存（支持 `HF_HOME` / `HF_HUB_CACHE`）；缓存完整后可离线运行
+- 当前本地接口只处理文本，多媒体输入沿用提取文本的行为；最多保留 8,192 个 token
+- 文档与查询的检索前缀由 `embed` / `embed_one` 与 `embed_query` 自动添加；`Searcher` 使用查询接口
 - opt-in `Gemini2Embedder`
 - 多模态 `ContentPart`
 - embedding profile 元数据：
@@ -80,6 +84,10 @@ use aimem_core::{AimemDb, Drawer, LocalEmbedder, MemoryStack, Miner, Searcher};
 ### Local
 
 - `LocalEmbedder`
+- 基于 ONNX Runtime 的 [`onnx-community/embeddinggemma-2-ONNX`](https://huggingface.co/onnx-community/embeddinggemma-2-ONNX)，使用 Q8 文本模型，输出归一化的 `768d` 向量
+- 首次运行下载约 314 MB 权重及分词器到 Hugging Face 缓存（支持 `HF_HOME` / `HF_HUB_CACHE`）；缓存完整后可离线运行
+- 当前本地接口只处理文本，多媒体输入沿用提取文本的行为；最多保留 8,192 个 token
+- 文档与查询的检索前缀由 `embed` / `embed_one` 与 `embed_query` 自动添加；`Searcher` 使用查询接口
 - 默认推荐
 - embedding 本地生成
 
@@ -99,7 +107,7 @@ URI-only 的多媒体 part 不会自动读取本地文件再上传。
 - model
 - dimension
 
-这样可以防止不兼容 embedding 静默混库。
+旧版 MiniLM `384d`、本地 EmbeddingGemma 2 `768d` 与远程 Gemini `768d` 不能混库。迁移时从原始文本重建独立数据库；旧库不会自动转换或删除。
 
 ## Drawer helper
 

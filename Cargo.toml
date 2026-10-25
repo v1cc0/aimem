@@ -10,7 +10,7 @@ members = [
 [workspace.package]
 version = "0.4.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.95"
 license = "MIT"
 authors = ["v1cc0 <vc@v1cc0.eu.org>"]
 homepage = "https://github.com/v1cc0/aimem"
@@ -20,7 +20,7 @@ repository = "https://github.com/v1cc0/aimem"
 aimem-core = { version = "0.4.0", path = "crates/aimem-core" }
 
 # Turso — keep on latest stable release
-turso = { version = "0.6.1", default-features = false, features = ["fts"] }
+turso = { version = "0.8.3", default-features = false, features = ["fts"] }
 
 # Async
 tokio = { version = "1", features = ["full"] }
@@ -34,12 +34,10 @@ serde_yaml = "0.9"
 thiserror = "2"
 anyhow = "1"
 
-# Embedding generation (local, no API key)
-# hf-hub: needed for TextEmbedding::try_new (model download from HuggingFace)
-fastembed = { version = "5", default-features = false, features = [
-  "ort-download-binaries",
-  "hf-hub",
-] }
+# Local ONNX inference and Hugging Face model cache (no API key)
+ort = { version = "=2.0.0-rc.15", default-features = false, features = ["std", "download-binaries", "tls-native", "copy-dylibs", "api-31"] }
+hf-hub = { version = "1.0.0", features = ["blocking", "rustls-tls"] }
+tokenizers = { version = "0.23.2", default-features = false, features = ["fancy-regex"] }
 
 # Hashing (drawer IDs)
 md5 = "0.8"

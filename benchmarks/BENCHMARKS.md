@@ -18,8 +18,8 @@ cargo run -p aimem-bench -- tri-memory \
   --out benchmarks/results_tri_keyword_only.jsonl
 ```
 
-Hybrid search, current local AiMem embedder (`all-MiniLM-L6-v2`) plus keyword
-fusion:
+Hybrid search, current local AiMem embedder (`onnx-community/embeddinggemma-2-ONNX`,
+Q8 text weights, 768 dimensions) plus keyword fusion:
 
 ```bash
 cargo run -p aimem-bench -- tri-memory \
@@ -59,7 +59,8 @@ cargo run -p aimem-bench -- tri-memory \
   --out benchmarks/results_mm_truth_hybrid.jsonl
 ```
 
-Current micro results:
+Recorded micro results (hybrid rows used the previous MiniLM model; these are
+not EmbeddingGemma 2 measurements):
 
 | Dataset | Mode | R@1 | R@5 | Note |
 |---|---:|---:|---:|---|

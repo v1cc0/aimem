@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- Upgraded Turso to `0.8.3` while retaining the FTS-enabled multiprocess WAL storage path.
+- Removed fastembed and replaced MiniLM with the Q8 text model from `onnx-community/embeddinggemma-2-ONNX`, using ONNX Runtime directly. Local embeddings are now normalized 768-dimensional vectors with an 8,192-token limit and cached, revision-pinned model files.
+- Added `Embedder::embed_query` with a backward-compatible default; local document/query prefixes follow the model's retrieval format, and `Searcher` uses the query path.
+- Kept legacy MiniLM profile inference unchanged so old stores are rejected rather than relabeled. Rebuild a separate store to change embedding models.
+- Raised the minimum Rust version to `1.95` for the current inference/download dependency stack.
+
 ## [0.4.0] - 2026-05-29
 
 ### Added

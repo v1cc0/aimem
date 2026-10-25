@@ -44,7 +44,10 @@ crates/
 ### Local
 
 - `LocalEmbedder`
-- `fastembed` ベース
+- ONNX Runtime で [`onnx-community/embeddinggemma-2-ONNX`](https://huggingface.co/onnx-community/embeddinggemma-2-ONNX) の Q8 テキストモデルを実行し、正規化された `768d` ベクトルを生成
+- 初回に約 314 MB の重みと tokenizer を Hugging Face cache に取得（`HF_HOME` / `HF_HUB_CACHE` 対応）。取得後はオフライン実行可能
+- ローカルではテキストのみ処理し、multimodal input からのテキスト抽出は従来どおり。最大 8,192 token
+- `embed` / `embed_one` は文書 prefix、`embed_query` は検索 prefix を付加。`Searcher` は query API を使用
 - デフォルト推奨
 - embedding はローカルで生成
 
@@ -69,11 +72,13 @@ AiMem は embedding profile metadata を store に記録し、mixed store を拒
 - model
 - dimension
 
-そのため local `384d` embedding から remote `768d` embedding に切り替えた場合、同じ DB で静かに検索品質を落とすのではなく、早期に失敗します。
+旧 MiniLM の `384d`、ローカル EmbeddingGemma 2 の `768d`、リモート Gemini の `768d` は混在できません。移行時は元のテキストから別の DB を再作成してください。既存 DB の自動変換や削除は行いません。
 
 添付ファイル系の取り込みでは、`MemoryStack::file_drawers_with_ids(...)` で呼び出し側が用意した stable-ID drawers をまとめて filing できます。下流アプリは 1 ファイル分の summary + chunk drawers を 1 回の embedding call にまとめられ、retry 時には既存 ID を embedding 前に skip できます。
 
 ## Install
+
+ソースからのビルドには Rust 1.95 以降が必要です。
 
 CLI:
 

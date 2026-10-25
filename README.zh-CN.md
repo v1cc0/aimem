@@ -44,7 +44,10 @@ crates/
 ### Local
 
 - `LocalEmbedder`
-- 基于 `fastembed`
+- 基于 ONNX Runtime 的 [`onnx-community/embeddinggemma-2-ONNX`](https://huggingface.co/onnx-community/embeddinggemma-2-ONNX)，使用 Q8 文本模型，输出归一化的 `768d` 向量
+- 首次运行下载约 314 MB 权重及分词器到 Hugging Face 缓存（支持 `HF_HOME` / `HF_HUB_CACHE`）；缓存完整后可离线运行
+- 当前本地接口只处理文本，多媒体输入沿用提取文本的行为；最多保留 8,192 个 token
+- 文档与查询的检索前缀由 `embed` / `embed_one` 与 `embed_query` 自动添加；`Searcher` 使用查询接口
 - 默认推荐
 - embedding 在本地生成
 
@@ -69,11 +72,13 @@ AiMem 会把 embedding profile 元数据写入 store，并拒绝混用不同 emb
 - model
 - dimension
 
-所以从本地 `384d` embedding 切到远程 `768d` embedding 时，同一个 DB 不会静默降级，而是会快速失败。
+旧版 MiniLM 的 `384d` 向量不能与新的本地 `768d` 向量混用；本地 EmbeddingGemma 2 与远程 Gemini 即使同为 `768d` 也不能混用。迁移时请从保留的原始文本重新建立独立数据库，旧库不会自动转换或删除。
 
 对于附件类写入，AiMem 可以通过 `MemoryStack::file_drawers_with_ids(...)` 批量提交调用方提供的 stable-ID drawers。下游应用可以把同一个文件的 summary + chunk drawers 合并到一次 embedding 调用，并在重试时先跳过已写入的 ID。
 
 ## 安装
+
+从源码构建需要 Rust 1.95 或更新版本。
 
 CLI：
 

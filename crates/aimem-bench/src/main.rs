@@ -51,7 +51,7 @@ enum Commands {
 enum BenchMode {
     /// Turso FTS/LIKE keyword path, no embedding model.
     KeywordOnly,
-    /// AiMem hybrid path: keyword + local all-MiniLM-L6-v2 vector search.
+    /// AiMem hybrid path: keyword + local EmbeddingGemma 2 vector search.
     Hybrid,
 }
 

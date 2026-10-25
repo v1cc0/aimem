@@ -49,9 +49,7 @@ use std::time::Instant;
 use thiserror::Error;
 use turso::{Builder, Connection, Database};
 
-use crate::embedder::{
-    GEMINI_EMBED_MODEL, GEMINI_EMBED_PROVIDER, LOCAL_EMBED_MODEL, LOCAL_EMBED_PROVIDER,
-};
+use crate::embedder::{GEMINI_EMBED_MODEL, GEMINI_EMBED_PROVIDER};
 use crate::types::{Drawer, Entity, Triple};
 
 #[derive(Debug, Error)]
@@ -287,7 +285,8 @@ impl AimemDb {
 
     fn infer_profile_from_dimension(dim: usize) -> Option<(&'static str, &'static str)> {
         match dim {
-            384 => Some((LOCAL_EMBED_PROVIDER, LOCAL_EMBED_MODEL)),
+            // Dimension-only records predate EmbeddingGemma; preserve their original identity.
+            384 => Some(("fastembed", "all-MiniLM-L6-v2")),
             768 => Some((GEMINI_EMBED_PROVIDER, GEMINI_EMBED_MODEL)),
             _ => None,
         }
