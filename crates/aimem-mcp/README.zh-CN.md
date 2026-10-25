@@ -4,6 +4,14 @@
 
 `aimem-mcp` 是 AiMem 的 stdio MCP server。
 
+## 0.5.0 升级：破坏性变更
+
+- **默认向量模型已更换：** 本地 MiniLM `384d` / fastembed 改为 EmbeddingGemma 2 ONNX Q8 `768d`。旧向量和远程 Gemini 向量均不能与新模型共用向量库。先停止写入并备份旧数据库及其 WAL sidecar，再从原始文本向独立数据库重新生成向量；不要修改已有 profile 绕过检查，不提供自动向量转换。
+- **最低要求 Rust 1.95。** 首次本地运行下载约 314 MB 权重及分词器，之后可使用缓存离线运行。
+- **Turso 升至 0.8.3：** 下游应用若直接依赖 Turso，应统一版本，避免类型不兼容或 native 符号重复。
+
+[完整发布说明与迁移步骤](https://github.com/v1cc0/aimem/blob/v0.5.0/CHANGELOG.md).
+
 ## 安装
 
 ```bash

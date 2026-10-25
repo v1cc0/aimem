@@ -4,6 +4,14 @@
 
 `aimem-mcp` is the stdio MCP server for AiMem.
 
+## 0.5.0 upgrade: breaking changes
+
+- **New embedding model:** local MiniLM `384d` / fastembed is replaced by EmbeddingGemma 2 ONNX Q8 `768d`. Old vectors and remote Gemini vectors cannot share the new model's store. Stop writers, back up the old DB and its WAL sidecars, then re-embed original text into a separate database. Do not relabel stored profiles; there is no automatic vector conversion.
+- **Rust 1.95+** is now required. First local use downloads about 314 MB of weights plus the tokenizer; subsequent runs can use the cache offline.
+- **Turso 0.8.3:** downstream applications using Turso directly should align versions to avoid incompatible types or duplicate native symbols.
+
+[Full release notes and migration instructions](https://github.com/v1cc0/aimem/blob/v0.5.0/CHANGELOG.md).
+
 ## Install
 
 ```bash

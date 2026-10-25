@@ -2,7 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [0.5.0] - 2026-10-25
+
+### Breaking changes
+- **Local embeddings use a new model and vector space.** fastembed / `all-MiniLM-L6-v2` (`384d`) is replaced by `onnx-community/embeddinggemma-2-ONNX` Q8 (`768d`, provider `onnx`). Existing MiniLM vectors cannot be reused or mixed with the new vectors. Remote Gemini `768d` vectors also remain a separate model profile.
+- **Rebuild embeddings in a separate database from the original text.** Back up the old database and its WAL sidecars with all writers stopped. Do not change stored model metadata to bypass profile checks. AiMem does not convert or delete existing databases automatically.
+- **Rust 1.95+ is required**, raised from 1.85 for the current inference/download dependency stack.
+- **Public Rust API changes:** `EmbedError::Fastembed(anyhow::Error)` is now `EmbedError::Local(anyhow::Error)`; update explicit pattern matches. `LOCAL_EMBED_PROVIDER`, `LOCAL_EMBED_MODEL`, and `LOCAL_EMBED_DIMENSION` now identify the ONNX model and its 768-dimensional output.
+- **Turso is now 0.8.3.** Downstream applications using Turso directly should align their Turso dependency with AiMem to avoid incompatible Rust types or duplicate native linker symbols from older Turso versions.
+
+### Upgrade notes
+- `LocalEmbedder::new()` remains available. First use downloads about 314 MB of Q8 weights plus the tokenizer into the Hugging Face cache; cached inference works offline.
+- `embed` / `embed_one` embed documents; use `embed_query` for manual retrieval queries. `Searcher` applies the query prefix automatically. The new trait method has a default implementation for existing custom embedders.
+- To rebuild project memory without touching the old database: `aimem --db-path ./aimem-0.5.db mine /path/to/project` (the project must contain `aimem.yaml`). Use the same new path for subsequent CLI queries and `AIMEM_DB_PATH` for the MCP server. Re-import other original sources separately; this command does not migrate every kind of stored record.
 
 ### Changed
 - Upgraded Turso to `0.8.3` while retaining the FTS-enabled multiprocess WAL storage path.

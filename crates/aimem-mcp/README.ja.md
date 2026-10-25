@@ -4,6 +4,14 @@
 
 `aimem-mcp` は AiMem の stdio MCP サーバーです。
 
+## 0.5.0 への更新：破壊的変更
+
+- **既定の embedding モデルを変更：** ローカル MiniLM `384d` / fastembed を EmbeddingGemma 2 ONNX Q8 `768d` に置き換えました。旧ベクトルやリモート Gemini のベクトルは新モデルの store と混在できません。書き込みを停止し、旧 DB と WAL sidecar をバックアップしてから、元のテキストを別の DB に再取り込みしてください。profile を書き換えて互換性チェックを回避しないでください。ベクトルの自動変換は行いません。
+- **Rust 1.95 以降が必要です。** 初回のローカル実行で約 314 MB の重みと tokenizer を取得し、以後はキャッシュを使ってオフライン実行できます。
+- **Turso 0.8.3：** Turso に直接依存する下流アプリは、型の不一致や native symbol の重複を避けるためバージョンを揃えてください。
+
+[リリースノートと移行手順](https://github.com/v1cc0/aimem/blob/v0.5.0/CHANGELOG.md).
+
 ## インストール
 
 ```bash
